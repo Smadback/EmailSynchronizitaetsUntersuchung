@@ -19,10 +19,10 @@ namespace SynchronizitätsUntersuchung
         public List<Antwort> Antworten;
         public int AnzahlErhalteneEmails;
         public Dictionary<Antwortzeit, int> VerteilungAntworten;
-        public Dictionary<Synchronizität, int> VerteilungGespräche;
-        public Dictionary<DayOfWeek, List<double>> TagesabhängigeAntworten;
-        public Dictionary<string, List<double>> TageszeitabhängigeAntworten;
-        public int DurchschnittlicheKonversationslänge;
+        public Dictionary<Synchronizitaet, int> VerteilungGespraeche;
+        public Dictionary<DayOfWeek, List<double>> TagesabhaengigeAntworten;
+        public Dictionary<string, List<double>> TageszeitabhaengigeAntworten;
+        public int DurchschnittlicheKonversationslaenge;
         
         /*
          * Konstruktor
@@ -33,29 +33,29 @@ namespace SynchronizitätsUntersuchung
             Konversationen = new Dictionary<string, Konversation>();
             Antworten = new List<Antwort>();
             VerteilungAntworten = new Dictionary<Antwortzeit, int>();
-            VerteilungGespräche = new Dictionary<Synchronizität, int>();
-            TagesabhängigeAntworten = new Dictionary<DayOfWeek, List<double>>();
-            TagesabhängigeAntworten[DayOfWeek.Monday] = new List<double>();
-            TagesabhängigeAntworten[DayOfWeek.Tuesday] = new List<double>();
-            TagesabhängigeAntworten[DayOfWeek.Wednesday] = new List<double>();
-            TagesabhängigeAntworten[DayOfWeek.Thursday] = new List<double>();
-            TagesabhängigeAntworten[DayOfWeek.Friday] = new List<double>();
-            TagesabhängigeAntworten[DayOfWeek.Saturday] = new List<double>();
-            TagesabhängigeAntworten[DayOfWeek.Sunday] = new List<double>();
+            VerteilungGespraeche = new Dictionary<Synchronizitaet, int>();
+            TagesabhaengigeAntworten = new Dictionary<DayOfWeek, List<double>>();
+            TagesabhaengigeAntworten[DayOfWeek.Monday] = new List<double>();
+            TagesabhaengigeAntworten[DayOfWeek.Tuesday] = new List<double>();
+            TagesabhaengigeAntworten[DayOfWeek.Wednesday] = new List<double>();
+            TagesabhaengigeAntworten[DayOfWeek.Thursday] = new List<double>();
+            TagesabhaengigeAntworten[DayOfWeek.Friday] = new List<double>();
+            TagesabhaengigeAntworten[DayOfWeek.Saturday] = new List<double>();
+            TagesabhaengigeAntworten[DayOfWeek.Sunday] = new List<double>();
 
-            TageszeitabhängigeAntworten = new Dictionary<string, List<double>>();
-            TageszeitabhängigeAntworten[Tageszeitabhängigkeit.Morgen] = new List<double>();
-            TageszeitabhängigeAntworten[Tageszeitabhängigkeit.Vormittag] = new List<double>();
-            TageszeitabhängigeAntworten[Tageszeitabhängigkeit.Mittag] = new List<double>();
-            TageszeitabhängigeAntworten[Tageszeitabhängigkeit.Nachmittag] = new List<double>();
-            TageszeitabhängigeAntworten[Tageszeitabhängigkeit.Abend] = new List<double>();
-            TageszeitabhängigeAntworten[Tageszeitabhängigkeit.Nacht] = new List<double>();
+            TageszeitabhaengigeAntworten = new Dictionary<string, List<double>>();
+            TageszeitabhaengigeAntworten[Tageszeitabhaengigkeit.Morgen] = new List<double>();
+            TageszeitabhaengigeAntworten[Tageszeitabhaengigkeit.Vormittag] = new List<double>();
+            TageszeitabhaengigeAntworten[Tageszeitabhaengigkeit.Mittag] = new List<double>();
+            TageszeitabhaengigeAntworten[Tageszeitabhaengigkeit.Nachmittag] = new List<double>();
+            TageszeitabhaengigeAntworten[Tageszeitabhaengigkeit.Abend] = new List<double>();
+            TageszeitabhaengigeAntworten[Tageszeitabhaengigkeit.Nacht] = new List<double>();
         }
 
         /*
          * Füge eine neue Konversation der enstprechenden Beziehung hinzu
          */
-        public void Konversation_Hinzufügen(Konversation konversation)
+        public void Konversation_Hinzufuegen(Konversation konversation)
         {
             if ( !Konversationen.ContainsKey( konversation.Id ) )
             {
@@ -73,8 +73,8 @@ namespace SynchronizitätsUntersuchung
 
             foreach(Antwort antwort in Antworten)
             {
-                TagesabhängigeAntworten[antwort.Wochentag].Add(antwort.Antwortzeit);
-                TageszeitabhängigeAntworten[antwort.Tageszeit].Add(antwort.Antwortzeit);
+                TagesabhaengigeAntworten[antwort.Wochentag].Add(antwort.Antwortzeit);
+                TageszeitabhaengigeAntworten[antwort.Tageszeit].Add(antwort.Antwortzeit);
             }
 
             // Alle Konversationen entfernen, die weniger als 2 Antworten haben, denn dann ist es kein Gespräch
@@ -93,19 +93,19 @@ namespace SynchronizitätsUntersuchung
                 foreach (KeyValuePair<string, Konversation> konv in Konversationen)
                 {
                     konv.Value.Konversation_Auswerten();
-                    gesamt_länge += konv.Value.Länge;
+                    gesamt_länge += konv.Value.Laenge;
                 }
 
-                DurchschnittlicheKonversationslänge = gesamt_länge / Konversationen.Count;
+                DurchschnittlicheKonversationslaenge = gesamt_länge / Konversationen.Count;
             }
 
-            VerteilungGespräche[Synchronizität.KomplettSynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizität == Synchronizität.KomplettSynchron);
-            VerteilungGespräche[Synchronizität.GrößtenteilsSynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizität == Synchronizität.GrößtenteilsSynchron);
-            VerteilungGespräche[Synchronizität.EherSynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizität == Synchronizität.EherSynchron);
-            VerteilungGespräche[Synchronizität.GleichmäßigSynchronUndAsynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizität == Synchronizität.GleichmäßigSynchronUndAsynchron);
-            VerteilungGespräche[Synchronizität.EherAsynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizität == Synchronizität.EherAsynchron);
-            VerteilungGespräche[Synchronizität.GrößtenteilsAsynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizität == Synchronizität.GrößtenteilsAsynchron);
-            VerteilungGespräche[Synchronizität.KomplettAsynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizität == Synchronizität.KomplettAsynchron);
+            VerteilungGespraeche[Synchronizitaet.KomplettSynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizitaet == Synchronizitaet.KomplettSynchron);
+            VerteilungGespraeche[Synchronizitaet.GroesstenteilsSynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizitaet == Synchronizitaet.GroesstenteilsSynchron);
+            VerteilungGespraeche[Synchronizitaet.EherSynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizitaet == Synchronizitaet.EherSynchron);
+            VerteilungGespraeche[Synchronizitaet.GleichmaeßigSynchronUndAsynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizitaet == Synchronizitaet.GleichmaeßigSynchronUndAsynchron);
+            VerteilungGespraeche[Synchronizitaet.EherAsynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizitaet == Synchronizitaet.EherAsynchron);
+            VerteilungGespraeche[Synchronizitaet.GroesstenteilsAsynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizitaet == Synchronizitaet.GroesstenteilsAsynchron);
+            VerteilungGespraeche[Synchronizitaet.KomplettAsynchron] = Konversationen.Count(konversation => konversation.Value.Synchronizitaet == Synchronizitaet.KomplettAsynchron);
         }
     }
 }

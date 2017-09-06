@@ -18,7 +18,7 @@ namespace SynchronizitätsUntersuchung
         // Variablen
         public static NameSpace NameSpace;
         public static Explorer CurrentExplorer;
-        public static Folder Folder;
+        public static Folder folder;
         public static string User;
         public static bool Untersuchung_Erweitern = false;
         public static bool Cancel = false;
@@ -27,7 +27,8 @@ namespace SynchronizitätsUntersuchung
         private Dictionary<string, int> speicher;
         List<string> konversationen;
         Dictionary<string, Beziehung> beziehungen;
-        
+        ExchangeUser currentUser;
+
         /*
          * Initialisiere das Add-In
          */
@@ -60,8 +61,8 @@ namespace SynchronizitätsUntersuchung
 
             Properties.Settings.Default.UserEmail = User;
 
-            try
-            {
+            /*try
+            {*/
                 // Zunächst Ordner für Auswertung erstellen wenn dieser noch nicht existiert
                 Directory.CreateDirectory(Pfad);
                 // Dann prüfen ob erweitert oder von vorne untersucht werden soll
@@ -73,11 +74,21 @@ namespace SynchronizitätsUntersuchung
                 Erstelle_html_datei();
                 Daten_In_Datei_Schreiben();
                 MessageBox.Show("Die Synchronizitätsuntersuchung wurde erfolgreich abgeschlossen.", "Erfolg", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+            foreach(KeyValuePair<string, Beziehung> bez in beziehungen)
+            {
+                Debug.WriteLine("Beziehung: " + bez.Key);
+
+                foreach(KeyValuePair<string, Konversation> konv in bez.Value.Konversationen)
+                {
+                    Debug.WriteLine("\tKonversation: " + konv.Value.Thema + " mit " + konv.Value.Laenge + " Emails");
+                }
             }
+            /*}
             catch (System.Exception)
             {
                 MessageBox.Show("Es ist ein Fehler aufgetreten, bitte führe die Untersuchung erneut durch.", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            }*/
         }
 
         private void Zeige_Dialog()
@@ -211,12 +222,12 @@ namespace SynchronizitätsUntersuchung
                                     {
                                         reader.ReadAsDouble();
                                         double antwortzeit = (double)reader.Value;
-                                        konv.Antwort_Hinzufügen(antwortzeit);
+                                        konv.Antwort_Hinzufuegen(antwortzeit);
                                     }
                                 }
                                 reader.Read();
 
-                                beziehung.Konversation_Hinzufügen(konv);
+                                beziehung.Konversation_Hinzufuegen(konv);
                             }
                         }
                         reader.Read();
@@ -234,6 +245,24 @@ namespace SynchronizitätsUntersuchung
 
         private void Starte_Untersuchung() 
         {
+            Properties.Settings.Default.UserEmail = User;
+
+            // Outlook Account auslesen, mitdem im Outlook angemeldet ist
+            
+            AddressEntry addrEntry = NameSpace.CurrentUser.AddressEntry;
+            if (addrEntry.Type == "EX")
+            {
+                currentUser = addrEntry.GetExchangeUser();
+            }
+
+            //Folder root = NameSpace.Session.DefaultStore.GetRootFolder() as Folder;
+            Folder root = CurrentExplorer.CurrentFolder as Folder;
+            UntersucheOrdner(root);
+            
+        }
+
+        private void UntersucheOrdner(Folder folder)
+        {
             Konversation konversation;
             string thema;
             string partner;
@@ -246,42 +275,29 @@ namespace SynchronizitätsUntersuchung
             DateTime sentOnDerLetztenGesendetenMail; // Mit jetzigem TimeStamp versehen, da irgendwas initialisiert werden muss
             DateTime receivedTimeDerLetztenGesendetenMail; // Mit jetzigem TimeStamp versehen, da irgendwas initialisiert werden muss
 
-            Properties.Settings.Default.UserEmail = User;
-
-            // Outlook Account auslesen, mitdem im Outlook angemeldet ist
-            ExchangeUser currentUser = null;
-            AddressEntry addrEntry = NameSpace.CurrentUser.AddressEntry;
-            if (addrEntry.Type == "EX")
-            {
-                currentUser = addrEntry.GetExchangeUser();
-            }
-
-            // Wähle den aktuell ausgewählten Ordner als Grundlage
-            Folder = CurrentExplorer.CurrentFolder as Folder;
-
             // Setze das Lesezeichen, falls für den ausgewählten Ordner bereits eine Untersuchung durchgeführt wurde
             int lesezeichen = 1;
-            if(speicher.ContainsKey(Folder.EntryID) && speicher[Folder.EntryID] <= Folder.Items.Count)
+            if (speicher.ContainsKey(folder.EntryID) && speicher[folder.EntryID] <= folder.Items.Count)
             {
-                lesezeichen = speicher[Folder.EntryID];
+                lesezeichen = speicher[folder.EntryID];
             }
 
             /*
              * Handelt es sich nicht um einen Ordner der E-Mails enthält, beende das Programm
              */
-            if (Folder.DefaultItemType != OlItemType.olMailItem)
+            if (folder.DefaultItemType != OlItemType.olMailItem)
             {
-                MessageBox.Show("Kein E-Mail Ordner");
+                return;
             }
 
             /*
              * Iteriere über jedes Objekt in dem zuvor ausgewählten Ordner
              */
-            for(int item = lesezeichen; item <= Folder.Items.Count; item++)
+            for (int item = lesezeichen; item <= folder.Items.Count; item++)
             {
-                speicher[Folder.EntryID] = item;
-                MailItem mail = Folder.Items[item] as MailItem;
-                
+                speicher[folder.EntryID] = item;
+                MailItem mail = folder.Items[item] as MailItem;
+
                 /*
                  * Überspringe das aktuelle Item, wenn es sich dabei nicht um eine E-Mail handelt
                  */
@@ -311,20 +327,26 @@ namespace SynchronizitätsUntersuchung
                     letzteMailWurdeGesendet = false;
                     sentOnDerLetztenGesendetenMail = DateTime.Now; // Mit jetzigem TimeStamp versehen, da irgendwas initialisiert werden muss
                     receivedTimeDerLetztenGesendetenMail = DateTime.Now; // Mit jetzigem TimeStamp versehen, da irgendwas initialisiert werden muss
-         
-                    Table table = k.GetTable();
-                    dynamic[,] temp = table.GetArray(table.GetRowCount());
-                    string entryID;
 
+                    Table table = k.GetTable();
+                    
                     // Wenn die Konversation mindestens aus 2 E-Mails besteht
-                    if (temp.GetLength(0) > 1)
+                    if (table.GetRowCount() > 1)
                     {
+                        dynamic[,] temp = table.GetArray(table.GetRowCount());
+                        string entryID;
+
                         List<MailItem> mailItems = new List<MailItem>();
 
                         for (int i = 0; i < temp.GetLength(0); i++)
                         {
                             entryID = ((object)temp[i, 0]).ToString();
-                            mailItems.Add(SynchronizitaetUntersuchung.NameSpace.GetItemFromID(entryID, Folder.StoreID));
+
+                            MailItem mailitem = NameSpace.GetItemFromID(entryID, folder.StoreID) as MailItem;
+                            if (mailitem != null)
+                            {
+                                mailItems.Add(mailitem);
+                            }
                         }
                         mailItems.Sort((x, y) => DateTime.Compare(x.ReceivedTime, y.ReceivedTime));
 
@@ -340,15 +362,16 @@ namespace SynchronizitätsUntersuchung
                                 if (string.IsNullOrEmpty(thema))
                                 {
                                     thema = mailItem.ConversationTopic;
+                                    konversation.Thema = thema;
                                 }
 
-                                if(!string.IsNullOrEmpty(mailItem.SenderEmailAddress))
+                                if (!string.IsNullOrEmpty(mailItem.SenderEmailAddress))
                                 {
                                     senderEmailAddress = mailItem.SenderEmailAddress;
                                 }
 
                                 // Es handelt sich um eine gesendete E-Mail
-                                if (senderEmailAddress == User || (currentUser != null && senderEmailAddress.Equals(currentUser.Address, StringComparison.OrdinalIgnoreCase)) )
+                                if (senderEmailAddress == User || (currentUser != null && senderEmailAddress.Equals(currentUser.Address, StringComparison.OrdinalIgnoreCase)))
                                 {
                                     /*
                                      * Aktualisiere den Synchronizitätswert für diese Konversation, in dem die Zeit zwischen
@@ -366,7 +389,7 @@ namespace SynchronizitätsUntersuchung
                                         // Es wird eine neue Antwort erstellt und diese der passenden Beziehung zugeordnet
                                         beziehungen[partner].Antworten.Add(new Antwort(antwort_antwortzeit.TotalSeconds, antwort_zeitstempel, mailItem.SentOn));
                                         // Neue Antwort der Konversation hinzufügen
-                                        beziehungen[partner].Konversationen[konversation.Id].Antwort_Hinzufügen(konversation_antwortzeit.TotalSeconds);
+                                        beziehungen[partner].Konversationen[konversation.Id].Antwort_Hinzufuegen(konversation_antwortzeit.TotalSeconds);
                                     }
 
                                     // Wenn mehr als eine Nachricht hintereinander gesendet werden, ohne dass selbst eine E-Mail empfangen wird, dann
@@ -389,13 +412,14 @@ namespace SynchronizitätsUntersuchung
                                     if (string.IsNullOrEmpty(partner))
                                     {
                                         partner = mailItem.SenderName;
-                                        if( ! beziehungen.ContainsKey(partner) )
+                                        if (!beziehungen.ContainsKey(partner))
                                         {
                                             beziehungen.Add(partner, new Beziehung(partner));
                                         }
                                         // Füge der Beziehung sofort die Konversation hinzu
                                         konversation.Thema = thema;
-                                        beziehungen[partner].Konversation_Hinzufügen(konversation);
+                                        Debug.WriteLine("Thema: " + thema);
+                                        beziehungen[partner].Konversation_Hinzufuegen(konversation);
 
                                     }
 
@@ -407,7 +431,7 @@ namespace SynchronizitätsUntersuchung
                                     {
                                         // Neue Antwort der Konversation hinzufügen
                                         TimeSpan antwortzeit = mailItem.ReceivedTime - sentOnDerLetztenGesendetenMail;
-                                        beziehungen[partner].Konversationen[konversation.Id].Antwort_Hinzufügen(antwortzeit.TotalSeconds);
+                                        beziehungen[partner].Konversationen[konversation.Id].Antwort_Hinzufuegen(antwortzeit.TotalSeconds);
                                     }
 
                                     // Wenn mehr als eine Nachricht hintereinander empfangen werden, ohne dass selbst eine E-Mail abgeschickt wird, dann
@@ -422,19 +446,36 @@ namespace SynchronizitätsUntersuchung
                                     letzteMailWurdeEmpfangen = true;
                                     letzteMailWurdeGesendet = false;
                                 }
-                                
-                                
+
+
                             }
 
                         }
 
                     }
-                    
+
                     konversationen.Add(konversation.Id);
 
                 }
 
             }
+
+            // Iteriere über alle Unterordner rekursiv
+            Folders childFolders = folder.Folders;
+
+            if (childFolders.Count > 0)
+            {
+                foreach (Folder childFolder in childFolders)
+                {
+                    // Write the folder path.
+                    Debug.WriteLine("##############################################################");
+                    Debug.WriteLine(childFolder.FolderPath);
+                    Debug.WriteLine("##############################################################");
+                    // Call EnumerateFolders using childFolder.
+                    UntersucheOrdner(childFolder);
+                }
+            }
+
         }
 
         private void Auswerten()
@@ -458,22 +499,22 @@ namespace SynchronizitätsUntersuchung
             int sehr_langsam = 0;
 
             int komplettSynchron = 0;
-            int größtenteilsSynchron = 0;
+            int groeßtenteilsSynchron = 0;
             int eherSynchron = 0;
-            int gleichmäßigSynchronUndAsynchron = 0;
+            int gleichmaeßigSynchronUndAsynchron = 0;
             int eherAsynchron = 0;
-            int größtenteilsAsynchron = 0;
+            int groesstenteilsAsynchron = 0;
             int komplettAsynchron = 0;
             Beziehung beziehung = new Beziehung("");
 
-            Dictionary<Synchronizität, int> gesamt_synchornizität = new Dictionary<Synchronizität, int>();
-            gesamt_synchornizität[Synchronizität.KomplettSynchron] = 0;
-            gesamt_synchornizität[Synchronizität.GrößtenteilsSynchron] = 0;
-            gesamt_synchornizität[Synchronizität.EherSynchron] = 0;
-            gesamt_synchornizität[Synchronizität.GleichmäßigSynchronUndAsynchron] = 0;
-            gesamt_synchornizität[Synchronizität.EherAsynchron] = 0;
-            gesamt_synchornizität[Synchronizität.GrößtenteilsAsynchron] = 0;
-            gesamt_synchornizität[Synchronizität.KomplettAsynchron] = 0;
+            Dictionary<Synchronizitaet, int> gesamt_synchornizitaet = new Dictionary<Synchronizitaet, int>();
+            gesamt_synchornizitaet[Synchronizitaet.KomplettSynchron] = 0;
+            gesamt_synchornizitaet[Synchronizitaet.GroesstenteilsSynchron] = 0;
+            gesamt_synchornizitaet[Synchronizitaet.EherSynchron] = 0;
+            gesamt_synchornizitaet[Synchronizitaet.GleichmaeßigSynchronUndAsynchron] = 0;
+            gesamt_synchornizitaet[Synchronizitaet.EherAsynchron] = 0;
+            gesamt_synchornizitaet[Synchronizitaet.GroesstenteilsAsynchron] = 0;
+            gesamt_synchornizitaet[Synchronizitaet.KomplettAsynchron] = 0;
 
             Dictionary <Antwortzeit, int> gesamt_antwortzeit = new Dictionary<Antwortzeit, int>();
             gesamt_antwortzeit[Antwortzeit.SehrSchnell] = 0;
@@ -482,26 +523,26 @@ namespace SynchronizitätsUntersuchung
             gesamt_antwortzeit[Antwortzeit.Langsam] = 0;
             gesamt_antwortzeit[Antwortzeit.SehrLangsam] = 0;
 
-            Dictionary<DayOfWeek, List<double>> gesamt_tagesabhängigeAntworten = new Dictionary<DayOfWeek, List<double>>();
-            gesamt_tagesabhängigeAntworten[DayOfWeek.Monday] = new List<double>();
-            gesamt_tagesabhängigeAntworten[DayOfWeek.Tuesday] = new List<double>();
-            gesamt_tagesabhängigeAntworten[DayOfWeek.Wednesday] = new List<double>();
-            gesamt_tagesabhängigeAntworten[DayOfWeek.Thursday] = new List<double>();
-            gesamt_tagesabhängigeAntworten[DayOfWeek.Friday] = new List<double>();
-            gesamt_tagesabhängigeAntworten[DayOfWeek.Saturday] = new List<double>();
-            gesamt_tagesabhängigeAntworten[DayOfWeek.Sunday] = new List<double>();
+            Dictionary<DayOfWeek, List<double>> gesamt_tagesabhaengigeAntworten = new Dictionary<DayOfWeek, List<double>>();
+            gesamt_tagesabhaengigeAntworten[DayOfWeek.Monday] = new List<double>();
+            gesamt_tagesabhaengigeAntworten[DayOfWeek.Tuesday] = new List<double>();
+            gesamt_tagesabhaengigeAntworten[DayOfWeek.Wednesday] = new List<double>();
+            gesamt_tagesabhaengigeAntworten[DayOfWeek.Thursday] = new List<double>();
+            gesamt_tagesabhaengigeAntworten[DayOfWeek.Friday] = new List<double>();
+            gesamt_tagesabhaengigeAntworten[DayOfWeek.Saturday] = new List<double>();
+            gesamt_tagesabhaengigeAntworten[DayOfWeek.Sunday] = new List<double>();
 
-            Dictionary<string, List<double>> gesamt_tageszeitabhängigeAntworten = new Dictionary<string, List<double>>();
-            gesamt_tageszeitabhängigeAntworten[Tageszeitabhängigkeit.Morgen] = new List<double>();
-            gesamt_tageszeitabhängigeAntworten[Tageszeitabhängigkeit.Vormittag] = new List<double>();
-            gesamt_tageszeitabhängigeAntworten[Tageszeitabhängigkeit.Mittag] = new List<double>();
-            gesamt_tageszeitabhängigeAntworten[Tageszeitabhängigkeit.Nachmittag] = new List<double>();
-            gesamt_tageszeitabhängigeAntworten[Tageszeitabhängigkeit.Abend] = new List<double>();
-            gesamt_tageszeitabhängigeAntworten[Tageszeitabhängigkeit.Nacht] = new List<double>();
+            Dictionary<string, List<double>> gesamt_tageszeitabhaengigeAntworten = new Dictionary<string, List<double>>();
+            gesamt_tageszeitabhaengigeAntworten[Tageszeitabhaengigkeit.Morgen] = new List<double>();
+            gesamt_tageszeitabhaengigeAntworten[Tageszeitabhaengigkeit.Vormittag] = new List<double>();
+            gesamt_tageszeitabhaengigeAntworten[Tageszeitabhaengigkeit.Mittag] = new List<double>();
+            gesamt_tageszeitabhaengigeAntworten[Tageszeitabhaengigkeit.Nachmittag] = new List<double>();
+            gesamt_tageszeitabhaengigeAntworten[Tageszeitabhaengigkeit.Abend] = new List<double>();
+            gesamt_tageszeitabhaengigeAntworten[Tageszeitabhaengigkeit.Nacht] = new List<double>();
 
-            string string_tagesabhängigkeit = "";
+            string string_tagesabhaengigkeit = "";
 
-            string string_tageszeitabhängigkeit = "";
+            string string_tageszeitabhaengigkeit = "";
 
             // Put HtmlTextWriter in using block because it needs to call Dispose.
             using (HtmlTextWriter writer = new HtmlTextWriter(stringWriter, String.Empty))
@@ -605,7 +646,7 @@ namespace SynchronizitätsUntersuchung
                     {
                         writer.WriteEncodedText(beziehungen_sortiert.ElementAt(counter).Key);
                         writer.RenderEndTag();
-                        writer.WriteEncodedText("Insgesamt hast du " + beziehung.Konversationen.Count() + " Konversationen mit einer durchschnittlichen Konversationslänge von " + beziehung.DurchschnittlicheKonversationslänge + " E-Mails mit "
+                        writer.WriteEncodedText("Insgesamt hast du " + beziehung.Konversationen.Count() + " Konversationen mit einer durchschnittlichen Konversationslänge von " + beziehung.DurchschnittlicheKonversationslaenge + " E-Mails mit "
                             + beziehung.Partner + " geführt. Unabhängig von den Konversationen hast du insgesamt " + beziehung.Antworten.Count + " Antworten gesendet.");
                     }
 
@@ -685,13 +726,13 @@ namespace SynchronizitätsUntersuchung
                         if (i > 0)
                         {
                             beziehung = beziehungen_sortiert.ElementAt(counter).Value;
-                            komplettSynchron = beziehung.VerteilungGespräche[Synchronizität.KomplettSynchron];
-                            größtenteilsSynchron = beziehung.VerteilungGespräche[Synchronizität.GrößtenteilsSynchron];
-                            eherSynchron = beziehung.VerteilungGespräche[Synchronizität.EherSynchron];
-                            gleichmäßigSynchronUndAsynchron = beziehung.VerteilungGespräche[Synchronizität.GleichmäßigSynchronUndAsynchron]; 
-                            eherAsynchron = beziehung.VerteilungGespräche[Synchronizität.EherAsynchron];
-                            größtenteilsAsynchron = beziehung.VerteilungGespräche[Synchronizität.GrößtenteilsAsynchron];
-                            komplettAsynchron = beziehung.VerteilungGespräche[Synchronizität.KomplettAsynchron];
+                            komplettSynchron = beziehung.VerteilungGespraeche[Synchronizitaet.KomplettSynchron];
+                            groeßtenteilsSynchron = beziehung.VerteilungGespraeche[Synchronizitaet.GroesstenteilsSynchron];
+                            eherSynchron = beziehung.VerteilungGespraeche[Synchronizitaet.EherSynchron];
+                            gleichmaeßigSynchronUndAsynchron = beziehung.VerteilungGespraeche[Synchronizitaet.GleichmaeßigSynchronUndAsynchron]; 
+                            eherAsynchron = beziehung.VerteilungGespraeche[Synchronizitaet.EherAsynchron];
+                            groesstenteilsAsynchron = beziehung.VerteilungGespraeche[Synchronizitaet.GroesstenteilsAsynchron];
+                            komplettAsynchron = beziehung.VerteilungGespraeche[Synchronizitaet.KomplettAsynchron];
                             
                             sehr_schnell = beziehung.VerteilungAntworten[Antwortzeit.SehrSchnell];
                             schnell = beziehung.VerteilungAntworten[Antwortzeit.Schnell];
@@ -699,13 +740,13 @@ namespace SynchronizitätsUntersuchung
                             langsam = beziehung.VerteilungAntworten[Antwortzeit.Langsam];
                             sehr_langsam = beziehung.VerteilungAntworten[Antwortzeit.SehrLangsam];
 
-                            gesamt_synchornizität[Synchronizität.KomplettSynchron] += komplettSynchron;
-                            gesamt_synchornizität[Synchronizität.GrößtenteilsSynchron] += größtenteilsSynchron;
-                            gesamt_synchornizität[Synchronizität.EherSynchron] += eherSynchron;
-                            gesamt_synchornizität[Synchronizität.GleichmäßigSynchronUndAsynchron] += gleichmäßigSynchronUndAsynchron;
-                            gesamt_synchornizität[Synchronizität.EherAsynchron] += eherAsynchron;
-                            gesamt_synchornizität[Synchronizität.GrößtenteilsAsynchron] += größtenteilsAsynchron;
-                            gesamt_synchornizität[Synchronizität.KomplettAsynchron] += komplettAsynchron;
+                            gesamt_synchornizitaet[Synchronizitaet.KomplettSynchron] += komplettSynchron;
+                            gesamt_synchornizitaet[Synchronizitaet.GroesstenteilsSynchron] += groeßtenteilsSynchron;
+                            gesamt_synchornizitaet[Synchronizitaet.EherSynchron] += eherSynchron;
+                            gesamt_synchornizitaet[Synchronizitaet.GleichmaeßigSynchronUndAsynchron] += gleichmaeßigSynchronUndAsynchron;
+                            gesamt_synchornizitaet[Synchronizitaet.EherAsynchron] += eherAsynchron;
+                            gesamt_synchornizitaet[Synchronizitaet.GroesstenteilsAsynchron] += groesstenteilsAsynchron;
+                            gesamt_synchornizitaet[Synchronizitaet.KomplettAsynchron] += komplettAsynchron;
 
                             gesamt_antwortzeit[Antwortzeit.SehrSchnell] += sehr_schnell;
                             gesamt_antwortzeit[Antwortzeit.Schnell] += schnell;
@@ -713,31 +754,31 @@ namespace SynchronizitätsUntersuchung
                             gesamt_antwortzeit[Antwortzeit.Langsam] += langsam;
                             gesamt_antwortzeit[Antwortzeit.SehrLangsam] += sehr_langsam;
 
-                            string_tagesabhängigkeit = "";
-                            foreach (KeyValuePair<DayOfWeek, List<double>> tagesabhängigkeit in beziehung.TagesabhängigeAntworten)
+                            string_tagesabhaengigkeit = "";
+                            foreach (KeyValuePair<DayOfWeek, List<double>> tagesabhaengigkeit in beziehung.TagesabhaengigeAntworten)
                             {
-                                string_tagesabhängigkeit += "{y: [" + string.Join(", ", tagesabhängigkeit.Value.Select(x => (x / 3600).ToString(nfi))) + "], type: 'box', name: '" + tagesabhängigkeit.Key + "', boxmean: true},";
-                                gesamt_tagesabhängigeAntworten[tagesabhängigkeit.Key].AddRange(tagesabhängigkeit.Value);
+                                string_tagesabhaengigkeit += "{y: [" + string.Join(", ", tagesabhaengigkeit.Value.Select(x => (x / 3600).ToString(nfi))) + "], type: 'box', name: '" + tagesabhaengigkeit.Key + "', boxmean: true},";
+                                gesamt_tagesabhaengigeAntworten[tagesabhaengigkeit.Key].AddRange(tagesabhaengigkeit.Value);
                             }
 
-                            string_tageszeitabhängigkeit = "";
-                            foreach (KeyValuePair<string, List<double>> tageszeitabhängigkeit in beziehung.TageszeitabhängigeAntworten)
+                            string_tageszeitabhaengigkeit = "";
+                            foreach (KeyValuePair<string, List<double>> tageszeitabhaengigkeit in beziehung.TageszeitabhaengigeAntworten)
                             {
-                                string_tageszeitabhängigkeit += "{y: [" + string.Join(", ", tageszeitabhängigkeit.Value.Select(x => (x / 3600).ToString(nfi))) + "], type: 'box', name: '" + tageszeitabhängigkeit.Key + "', boxmean: true},";
-                                gesamt_tageszeitabhängigeAntworten[tageszeitabhängigkeit.Key].AddRange(tageszeitabhängigkeit.Value);
+                                string_tageszeitabhaengigkeit += "{y: [" + string.Join(", ", tageszeitabhaengigkeit.Value.Select(x => (x / 3600).ToString(nfi))) + "], type: 'box', name: '" + tageszeitabhaengigkeit.Key + "', boxmean: true},";
+                                gesamt_tageszeitabhaengigeAntworten[tageszeitabhaengigkeit.Key].AddRange(tageszeitabhaengigkeit.Value);
                             }
 
                             
                         }
                         else
                         {
-                            komplettSynchron = gesamt_synchornizität[Synchronizität.KomplettSynchron];
-                            größtenteilsSynchron = gesamt_synchornizität[Synchronizität.GrößtenteilsSynchron];
-                            eherSynchron = gesamt_synchornizität[Synchronizität.EherSynchron];
-                            gleichmäßigSynchronUndAsynchron = gesamt_synchornizität[Synchronizität.GleichmäßigSynchronUndAsynchron];
-                            eherAsynchron = gesamt_synchornizität[Synchronizität.EherAsynchron];
-                            größtenteilsAsynchron = gesamt_synchornizität[Synchronizität.GrößtenteilsAsynchron];
-                            komplettAsynchron = gesamt_synchornizität[Synchronizität.KomplettAsynchron];
+                            komplettSynchron = gesamt_synchornizitaet[Synchronizitaet.KomplettSynchron];
+                            groeßtenteilsSynchron = gesamt_synchornizitaet[Synchronizitaet.GroesstenteilsSynchron];
+                            eherSynchron = gesamt_synchornizitaet[Synchronizitaet.EherSynchron];
+                            gleichmaeßigSynchronUndAsynchron = gesamt_synchornizitaet[Synchronizitaet.GleichmaeßigSynchronUndAsynchron];
+                            eherAsynchron = gesamt_synchornizitaet[Synchronizitaet.EherAsynchron];
+                            groesstenteilsAsynchron = gesamt_synchornizitaet[Synchronizitaet.GroesstenteilsAsynchron];
+                            komplettAsynchron = gesamt_synchornizitaet[Synchronizitaet.KomplettAsynchron];
 
                             sehr_schnell = gesamt_antwortzeit[Antwortzeit.SehrSchnell];
                             schnell = gesamt_antwortzeit[Antwortzeit.Schnell];
@@ -745,16 +786,16 @@ namespace SynchronizitätsUntersuchung
                             langsam = gesamt_antwortzeit[Antwortzeit.Langsam];
                             sehr_langsam = gesamt_antwortzeit[Antwortzeit.SehrLangsam];
 
-                            string_tagesabhängigkeit = "";
-                            foreach (KeyValuePair<DayOfWeek, List<double>> tagesabhängigkeit in gesamt_tagesabhängigeAntworten)
+                            string_tagesabhaengigkeit = "";
+                            foreach (KeyValuePair<DayOfWeek, List<double>> tagesabhaengigkeit in gesamt_tagesabhaengigeAntworten)
                             {
-                                string_tagesabhängigkeit += "{y: [" + string.Join(", ", tagesabhängigkeit.Value.Select(x => (x / 3600).ToString(nfi))) + "], type: 'box', name: '" + tagesabhängigkeit.Key + "', boxmean: true},";
+                                string_tagesabhaengigkeit += "{y: [" + string.Join(", ", tagesabhaengigkeit.Value.Select(x => (x / 3600).ToString(nfi))) + "], type: 'box', name: '" + tagesabhaengigkeit.Key + "', boxmean: true},";
                             }
 
-                            string_tageszeitabhängigkeit = "";
-                            foreach (KeyValuePair<string, List<double>> tageszeitabhängigkeit in gesamt_tageszeitabhängigeAntworten)
+                            string_tageszeitabhaengigkeit = "";
+                            foreach (KeyValuePair<string, List<double>> tageszeitabhaengigkeit in gesamt_tageszeitabhaengigeAntworten)
                             {
-                                string_tageszeitabhängigkeit += "{y: [" + string.Join(", ", tageszeitabhängigkeit.Value.Select(x => (x / 3600).ToString(nfi))) + "], type: 'box', name: '" + tageszeitabhängigkeit.Key + "', boxmean: true},";
+                                string_tageszeitabhaengigkeit += "{y: [" + string.Join(", ", tageszeitabhaengigkeit.Value.Select(x => (x / 3600).ToString(nfi))) + "], type: 'box', name: '" + tageszeitabhaengigkeit.Key + "', boxmean: true},";
                             }
                         }
 
@@ -764,26 +805,26 @@ namespace SynchronizitätsUntersuchung
                         if (beziehung.Konversationen.Count >= 1 || i == 0)
                         {
                             data = "[{" +
-                                "values: [" + komplettSynchron + "," + größtenteilsSynchron + "," + eherSynchron + "," + gleichmäßigSynchronUndAsynchron + "," + eherAsynchron + "," + größtenteilsAsynchron + "," + komplettAsynchron + "], " +
+                                "values: [" + komplettSynchron + "," + groeßtenteilsSynchron + "," + eherSynchron + "," + gleichmaeßigSynchronUndAsynchron + "," + eherAsynchron + "," + groesstenteilsAsynchron + "," + komplettAsynchron + "], " +
                                 "labels: ['" +
-                                        SynchronizitätLabel.KomplettSynchron + "', '" +
-                                        SynchronizitätLabel.GrößtenteilsSynchron + "', '" +
-                                        SynchronizitätLabel.EherSynchron + "', '" +
-                                        SynchronizitätLabel.GleichmäßigSynchronUndAsynchron + "', '" +
-                                        SynchronizitätLabel.EherAsynchron + "', '" +
-                                        SynchronizitätLabel.GrößtenteilsAsynchron + "', '" +
-                                        SynchronizitätLabel.KomplettAsynchron +
+                                        SynchronizitaetLabel.KomplettSynchron + "', '" +
+                                        SynchronizitaetLabel.GroesstenteilsSynchron + "', '" +
+                                        SynchronizitaetLabel.EherSynchron + "', '" +
+                                        SynchronizitaetLabel.GleichmaeßigSynchronUndAsynchron + "', '" +
+                                        SynchronizitaetLabel.EherAsynchron + "', '" +
+                                        SynchronizitaetLabel.GroesstenteilsAsynchron + "', '" +
+                                        SynchronizitaetLabel.KomplettAsynchron +
                                         "'], " +
                                 "type: 'pie', " +
                                 "marker: {" +
                                     "colors: ['" +
-                                        SynchronizitätFarbe.KomplettSynchron + "', '" +
-                                        SynchronizitätFarbe.GrößtenteilsSynchron + "', '" +
-                                        SynchronizitätFarbe.EherSynchron + "', '" +
-                                        SynchronizitätFarbe.GleichmäßigSynchronUndAsynchron + "', '" +
-                                        SynchronizitätFarbe.EherAsynchron + "', '" +
-                                        SynchronizitätFarbe.GrößtenteilsAsynchron + "', '" +
-                                        SynchronizitätFarbe.KomplettAsynchron +
+                                        SynchronizitaetFarbe.KomplettSynchron + "', '" +
+                                        SynchronizitaetFarbe.GroesstenteilsSynchron + "', '" +
+                                        SynchronizitaetFarbe.EherSynchron + "', '" +
+                                        SynchronizitaetFarbe.GleichmaeßigSynchronUndAsynchron + "', '" +
+                                        SynchronizitaetFarbe.EherAsynchron + "', '" +
+                                        SynchronizitaetFarbe.GroesstenteilsAsynchron + "', '" +
+                                        SynchronizitaetFarbe.KomplettAsynchron +
                                         "']" +
                                 "}" +
                             "}]";
@@ -822,14 +863,14 @@ namespace SynchronizitätsUntersuchung
                             /*
                             * Antwortzeiten nach Wochentagesabhängigkeit per Boxplot
                             */
-                            data = "[" + string_tagesabhängigkeit + "]";
+                            data = "[" + string_tagesabhaengigkeit + "]";
                             layout = "{title: 'Deine Antwortzeiten (in Stunden) nach Tag des E-Mail-Eingangs'}";
                             writer.WriteLineNoTabs("Plotly.newPlot('" + "tagesabhaengikeit" + i + "', " + data + "," + layout + "); ");
 
                             /*
                             * Antwortzeiten nach Tageszeitabhängigkeit per Boxplot
                             */
-                            data = "[" + string_tageszeitabhängigkeit + "]";
+                            data = "[" + string_tageszeitabhaengigkeit + "]";
 
                             layout = "{title: 'Deine Antwortzeiten (in Stunden) nach Tageszeit des E-Mail-Eingangs'}";
                             writer.WriteLineNoTabs("Plotly.newPlot('" + "tageszeitabhaengikeit" + i + "', " + data + "," + layout + "); ");

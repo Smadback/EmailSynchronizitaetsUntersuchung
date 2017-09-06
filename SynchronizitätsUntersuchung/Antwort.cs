@@ -21,7 +21,7 @@ namespace SynchronizitätsUntersuchung
         {
             Antwortzeit = antwortzeit;
             Wochentag = zeitstempel_empfangene_mail.DayOfWeek;
-            Tageszeit = Tageszeitabhängigkeit.GetTageszeit(zeitstempel_empfangene_mail.TimeOfDay.Hours);
+            Tageszeit = Tageszeitabhaengigkeit.GetTageszeit(zeitstempel_empfangene_mail.TimeOfDay.Hours);
 
             Synchronizität = getSynchronizität();
 

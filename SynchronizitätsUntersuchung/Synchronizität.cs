@@ -11,9 +11,9 @@ namespace SynchronizitätsUntersuchung
         SehrSchnell, Schnell, Normal, Langsam, SehrLangsam, Undefiniert
     }
 
-    enum Synchronizität
+    enum Synchronizitaet
     {
-        KomplettSynchron, GrößtenteilsSynchron, EherSynchron, GleichmäßigSynchronUndAsynchron, EherAsynchron, GrößtenteilsAsynchron, KomplettAsynchron, Undefiniert
+        KomplettSynchron, GroesstenteilsSynchron, EherSynchron, GleichmaeßigSynchronUndAsynchron, EherAsynchron, GroesstenteilsAsynchron, KomplettAsynchron, Undefiniert
     }
 
     class Helper
@@ -56,14 +56,14 @@ namespace SynchronizitätsUntersuchung
         public static readonly string SehrLangsam = "#d11141";
     }
 
-    class SynchronizitätFarbe
+    class SynchronizitaetFarbe
     {
         public static readonly string KomplettSynchron = "#00b159";
-        public static readonly string GrößtenteilsSynchron = "#00aedb";
+        public static readonly string GroesstenteilsSynchron = "#00aedb";
         public static readonly string EherSynchron = "orange";
-        public static readonly string GleichmäßigSynchronUndAsynchron = "#ffc425";
+        public static readonly string GleichmaeßigSynchronUndAsynchron = "#ffc425";
         public static readonly string EherAsynchron = "brown";
-        public static readonly string GrößtenteilsAsynchron = "#f37735";
+        public static readonly string GroesstenteilsAsynchron = "#f37735";
         public static readonly string KomplettAsynchron = "#d11141";
     }
 
@@ -76,18 +76,18 @@ namespace SynchronizitätsUntersuchung
         public static readonly string SehrLangsam = "Sehr langsam";
     }
 
-    class SynchronizitätLabel
+    class SynchronizitaetLabel
     {
         public static readonly string KomplettSynchron = "Komplett synchron";
-        public static readonly string GrößtenteilsSynchron = "Größtenteils synchron";
+        public static readonly string GroesstenteilsSynchron = "Größtenteils synchron";
         public static readonly string EherSynchron = "Eher Synchron";
-        public static readonly string GleichmäßigSynchronUndAsynchron = "Gleichmäßig synchron und asynchron";
+        public static readonly string GleichmaeßigSynchronUndAsynchron = "Gleichmäßig synchron und asynchron";
         public static readonly string EherAsynchron = "Eher asynchron";
-        public static readonly string GrößtenteilsAsynchron = "Größtenteils asynchron";
+        public static readonly string GroesstenteilsAsynchron = "Größtenteils asynchron";
         public static readonly string KomplettAsynchron = "Komplett asynchron";
     }
 
-    class Tageszeitabhängigkeit
+    class Tageszeitabhaengigkeit
     {
         public static readonly string Morgen = "Morgen";
         public static readonly string Vormittag = "Vormittag";

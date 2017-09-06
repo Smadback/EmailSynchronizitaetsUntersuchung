@@ -16,8 +16,8 @@ namespace SynchronizitätsUntersuchung
         // Wird berechnet
         public Dictionary<Antwortzeit, int> AnzahlAntwortzeiten { get; }
         public Antwortzeit MedianAntwortzeit { get; private set; }
-        public Synchronizität Synchronizität { get; private set; }
-        public int Länge;
+        public Synchronizitaet Synchronizitaet { get; private set; }
+        public int Laenge;
 
         // irrelevant
         public string Thema;
@@ -35,7 +35,7 @@ namespace SynchronizitätsUntersuchung
         /**
          * Neue Antwort der Konversation hinzufügen
          */
-        public void Antwort_Hinzufügen(double antwortzeit)
+        public void Antwort_Hinzufuegen(double antwortzeit)
         {
             // Die Antwortzeit in die Liste hinzufügen
             Antwortzeiten.Add(antwortzeit);
@@ -54,21 +54,21 @@ namespace SynchronizitätsUntersuchung
          */
         public void Konversation_Auswerten()
         {
-            Länge = Antwortzeiten.Count + 1;
-            int länge = Antwortzeiten.Count;
-            int halfIndex = länge / 2;
-            int unteresQuartilIndex = (int)(länge * 0.25);
-            int oberesQuartilIndex = (int)(länge * 0.75);
+            Laenge = Antwortzeiten.Count + 1;
+            int laenge = Antwortzeiten.Count;
+            int halfIndex = laenge / 2;
+            int unteresQuartilIndex = (int)(laenge * 0.25);
+            int oberesQuartilIndex = (int)(laenge * 0.75);
             // Alle Antwortzeiten absteigend sortieren, also von langsamen bis zu schnellen Antworten
             List<double> antwortzeiten_sortiert = (from antwort in Antwortzeiten orderby antwort descending select antwort).ToList();
             double median = 0;
             double unteres_quartil = 0;
             double oberes_quartil = 0;
 
-            if (länge > 1)
+            if (laenge > 1)
             {
                 // Median
-                if ((länge % 2) == 0)
+                if ((laenge % 2) == 0)
                 {
                     // Median ist der Mittelwert der beiden Antwortzeiten in der Mitte der Liste (gibt nicht genau einen, da gerade Anzahl an Werten)
                     median = (Antwortzeiten[halfIndex] + Antwortzeiten[halfIndex - 1] / 2);
@@ -80,7 +80,7 @@ namespace SynchronizitätsUntersuchung
                 }
 
                 // Quartile
-                if ((länge % 4) == 0)
+                if ((laenge % 4) == 0)
                 {
                     // Unteres Quartil
                     unteres_quartil = (Antwortzeiten[unteresQuartilIndex] + Antwortzeiten[unteresQuartilIndex - 1] / 2);
@@ -103,42 +103,42 @@ namespace SynchronizitätsUntersuchung
             // Abhängig vom Median und Quartilen speziellere Auswertung vornehmen
             if (MedianAntwortzeit == Antwortzeit.SehrSchnell || MedianAntwortzeit == Antwortzeit.Schnell)
             {
-                if(Helper.GetAntwortzeit(Antwortzeiten[(int)(länge * 0.1)]) == Antwortzeit.Schnell || Helper.GetAntwortzeit(Antwortzeiten[(int)(länge * 0.1)]) == Antwortzeit.SehrSchnell)
+                if(Helper.GetAntwortzeit(Antwortzeiten[(int)(laenge * 0.1)]) == Antwortzeit.Schnell || Helper.GetAntwortzeit(Antwortzeiten[(int)(laenge * 0.1)]) == Antwortzeit.SehrSchnell)
                 {
-                    Synchronizität = Synchronizität.KomplettSynchron;
+                    Synchronizitaet = Synchronizitaet.KomplettSynchron;
                 }
                 else if (UnteresQuartilAntwortzeit == Antwortzeit.Schnell || UnteresQuartilAntwortzeit == Antwortzeit.SehrSchnell)
                 {
-                    Synchronizität = Synchronizität.GrößtenteilsSynchron;
+                    Synchronizitaet = Synchronizitaet.GroesstenteilsSynchron;
                 }
                 else
                 {
                     // Median bei schnell: Gleichmäßig Synchron und Asynchron
-                    Synchronizität = Synchronizität.EherSynchron;
+                    Synchronizitaet = Synchronizitaet.EherSynchron;
                 }
             }
             // Median bei normal: Gleichmäßig Synchron und Asynchron
             else if (MedianAntwortzeit == Antwortzeit.Normal)
             {
-                Synchronizität = Synchronizität.GleichmäßigSynchronUndAsynchron;
+                Synchronizitaet = Synchronizitaet.GleichmaeßigSynchronUndAsynchron;
             }
             else if (MedianAntwortzeit == Antwortzeit.Langsam || MedianAntwortzeit == Antwortzeit.SehrLangsam)
             {
-                if (Helper.GetAntwortzeit(Antwortzeiten[(int)(länge * 0.9)]) == Antwortzeit.Langsam || Helper.GetAntwortzeit(Antwortzeiten[(int)(länge * 0.9)]) == Antwortzeit.SehrLangsam)
+                if (Helper.GetAntwortzeit(Antwortzeiten[(int)(laenge * 0.9)]) == Antwortzeit.Langsam || Helper.GetAntwortzeit(Antwortzeiten[(int)(laenge * 0.9)]) == Antwortzeit.SehrLangsam)
                 {
-                    Synchronizität = Synchronizität.KomplettAsynchron;
+                    Synchronizitaet = Synchronizitaet.KomplettAsynchron;
                 }
                 else if (OberesQuartilAntwortzeit == Antwortzeit.Langsam || OberesQuartilAntwortzeit == Antwortzeit.SehrLangsam)
                 {
-                    Synchronizität = Synchronizität.GrößtenteilsAsynchron;
+                    Synchronizitaet = Synchronizitaet.GroesstenteilsAsynchron;
                 }
                 else
                 {
-                    Synchronizität = Synchronizität.EherAsynchron;
+                    Synchronizitaet = Synchronizitaet.EherAsynchron;
                 }
             } else
             {
-                Synchronizität = Synchronizität.Undefiniert;
+                Synchronizitaet = Synchronizitaet.Undefiniert;
             }
 
         }
