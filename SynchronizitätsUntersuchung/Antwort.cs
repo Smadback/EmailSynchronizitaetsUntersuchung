@@ -23,7 +23,7 @@ namespace SynchronizitätsUntersuchung
             Wochentag = zeitstempel_empfangene_mail.DayOfWeek;
             Tageszeit = Tageszeitabhaengigkeit.GetTageszeit(zeitstempel_empfangene_mail.TimeOfDay.Hours);
 
-            Synchronizität = getSynchronizität();
+            Synchronizität = Helper.GetAntwortzeit(Antwortzeit);
 
             this.zeitstempel_empfangene_mail = zeitstempel_empfangene_mail;
             this.zeitstempel_gesendete_antwort = zeitstempel_gesendete_antwort;
@@ -34,32 +34,7 @@ namespace SynchronizitätsUntersuchung
             Antwortzeit = antwortzeit;
             Wochentag = wochentag;
             Tageszeit = tageszeit;
-            Synchronizität = getSynchronizität();
-        }
-
-
-        private Antwortzeit getSynchronizität()
-        {
-            if (Antwortzeit > 86400) // mehr als 24 Stunden
-            {
-                return SynchronizitätsUntersuchung.Antwortzeit.SehrLangsam;
-            }
-            else if (Antwortzeit > 14400) // zwischen 4 Stunden und 24 Stunden
-            {
-                return SynchronizitätsUntersuchung.Antwortzeit.Langsam;
-            }
-            else if (Antwortzeit > 3600) // zwischen 30 Minuten und 4 Stunden
-            {
-                return SynchronizitätsUntersuchung.Antwortzeit.Normal;
-            }
-            else if (Antwortzeit > 240) // zwischen 5 Minuten und 30 Minuten
-            {
-                return SynchronizitätsUntersuchung.Antwortzeit.Schnell;
-            }
-            else // weniger als 3 Minuten
-            {
-                return SynchronizitätsUntersuchung.Antwortzeit.SehrSchnell;
-            }
+            Synchronizität = Helper.GetAntwortzeit(Antwortzeit);
         }
 
         public override string ToString()

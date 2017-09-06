@@ -23,11 +23,13 @@ namespace SynchronizitätsUntersuchung
         public static bool Untersuchung_Erweitern = false;
         public static bool Cancel = false;
         public static String Pfad = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "/SynchronizitaetsUntersuchung/";
+        public static bool Breite_Werte = false;
 
         private Dictionary<string, int> speicher;
         List<string> konversationen;
         Dictionary<string, Beziehung> beziehungen;
         ExchangeUser currentUser;
+        StreamWriter logfile = null;
 
         /*
          * Initialisiere das Add-In
@@ -43,6 +45,7 @@ namespace SynchronizitätsUntersuchung
 
         private void btnUntersuchungStarten_Click(object sender, RibbonControlEventArgs e)
         {
+            log("Starte Untersuchung");
             speicher = new Dictionary<string, int>();
             Zeige_Dialog();
 
@@ -55,6 +58,7 @@ namespace SynchronizitätsUntersuchung
             // Es wurde keine E-Mail angegeben
             if (User == "")
             {
+                log("Keine E-Mail Adresse angegeben");
                 MessageBox.Show("Um die Untersuchung durchzufügen, muss angegeben werden wie deine E-Mail Adresse lautet.");
                 return;
             }
@@ -75,7 +79,7 @@ namespace SynchronizitätsUntersuchung
                 Daten_In_Datei_Schreiben();
                 MessageBox.Show("Die Synchronizitätsuntersuchung wurde erfolgreich abgeschlossen.", "Erfolg", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-            foreach(KeyValuePair<string, Beziehung> bez in beziehungen)
+            /*foreach(KeyValuePair<string, Beziehung> bez in beziehungen)
             {
                 Debug.WriteLine("Beziehung: " + bez.Key);
 
@@ -83,7 +87,7 @@ namespace SynchronizitätsUntersuchung
                 {
                     Debug.WriteLine("\tKonversation: " + konv.Value.Thema + " mit " + konv.Value.Laenge + " Emails");
                 }
-            }
+            }*/
             /*}
             catch (System.Exception)
             {
@@ -95,24 +99,26 @@ namespace SynchronizitätsUntersuchung
         {
             Form dialog = new Form()
             {
-                Width = 600,
+                Width = 700,
                 Height = 200,
                 FormBorderStyle = FormBorderStyle.FixedDialog,
                 Text = "Deine E-Mail Adresse, die du in dem zu untersuchenden Postfach verwendest.",
                 StartPosition = FormStartPosition.CenterScreen
             };
 
-            Label textLabel = new Label() { Left = 40, Top = 15, Width = 510, Text = "E-Mail Adresse" };
-            TextBox email = new TextBox() { Left = 40, Top = 35, Width = 510, Text = Properties.Settings.Default.UserEmail };
-            RadioButton radiobutton_extend = new RadioButton() { Text = "Untersuchung dort fortführen, wo die letzte aufgehört hat", Left = 40, Top = 65, Width = 510, Checked = true };
-            RadioButton radiobutton_override = new RadioButton() { Text = "Komplett neue Untersuchung durchführen und alle bestehende Daten überschreiben", Left = 40, Top = 90, Width = 510, Checked = false };
+            Properties.Settings.Default.UserEmail = "maik.schmaddebeck@tu-clausthal.de";
+
+            Label textLabel = new Label() { Left = 40, Top = 15, Width = 610, Text = "E-Mail Adresse" };
+            TextBox email = new TextBox() { Left = 40, Top = 35, Width = 610, Text = Properties.Settings.Default.UserEmail };
+            CheckBox override_btn = new CheckBox() { Text = "Komplett neue Untersuchung durchführen und alle bestehende Daten überschreiben", Left = 40, Top = 90, Width = 610, Checked = false };
+            CheckBox eigenewerte_btn = new CheckBox() { Text = "Für die Untersuchung breitere Werte verwenden", Left = 40, Top = 65, Width = 610, Checked = false };
             Button confirmation = new Button() { Text = "Ok", Left = 340, Width = 100, Top = 120, DialogResult = DialogResult.OK };
             Button cancel = new Button() { Text = "Abbrechen", Left = 450, Width = 100, Top = 120, DialogResult = DialogResult.Cancel };
 
             dialog.Controls.Add(email);
             dialog.Controls.Add(textLabel);
-            dialog.Controls.Add(radiobutton_override);
-            dialog.Controls.Add(radiobutton_extend);
+            dialog.Controls.Add(override_btn);
+            dialog.Controls.Add(eigenewerte_btn);
             dialog.Controls.Add(confirmation);
             dialog.Controls.Add(cancel);
             dialog.AcceptButton = confirmation;
@@ -125,11 +131,16 @@ namespace SynchronizitätsUntersuchung
                 // put in how you want the various results to be handled
                 // if ok, then something like var x = dialog.MyX;
                 case DialogResult.OK:
+                    log("E-Mail Adresse \"" + email.Text + "\" angegeben.");
+                    log("CheckBox \"Überschreiben\": " + override_btn.Checked);
+                    log("CheckBox \"BreiteWerte\": " + eigenewerte_btn.Checked);
                     User = email.Text;
-                    Untersuchung_Erweitern = radiobutton_extend.Checked;
+                    Untersuchung_Erweitern = !override_btn.Checked;
+                    Breite_Werte = eigenewerte_btn.Checked;
                     break;
                 default:
                     Cancel = true;
+                    log("Dialog abgebrochen");
                     break;
             }
 
@@ -263,6 +274,7 @@ namespace SynchronizitätsUntersuchung
 
         private void UntersucheOrdner(Folder folder)
         {
+            log("Untersuche [Ordner] " + folder.Name);
             Konversation konversation;
             string thema;
             string partner;
@@ -280,6 +292,7 @@ namespace SynchronizitätsUntersuchung
             if (speicher.ContainsKey(folder.EntryID) && speicher[folder.EntryID] <= folder.Items.Count)
             {
                 lesezeichen = speicher[folder.EntryID];
+                log("Lesezeichen bei " + lesezeichen + " gesetzt.");
             }
 
             /*
@@ -363,6 +376,7 @@ namespace SynchronizitätsUntersuchung
                                 {
                                     thema = mailItem.ConversationTopic;
                                     konversation.Thema = thema;
+                                    log("[Konversation] \"" + thema + "\"");
                                 }
 
                                 if (!string.IsNullOrEmpty(mailItem.SenderEmailAddress))
@@ -373,6 +387,7 @@ namespace SynchronizitätsUntersuchung
                                 // Es handelt sich um eine gesendete E-Mail
                                 if (senderEmailAddress == User || (currentUser != null && senderEmailAddress.Equals(currentUser.Address, StringComparison.OrdinalIgnoreCase)))
                                 {
+                                    log("\t[E-Mail] von " + senderEmailAddress + " am " + mailItem.SentOn);
                                     /*
                                      * Aktualisiere den Synchronizitätswert für diese Konversation, in dem die Zeit zwischen
                                      * Empfangen der letzten E-Mail und Senden der aktuellen E-Mail berechnet und mit dem letzten 
@@ -407,6 +422,7 @@ namespace SynchronizitätsUntersuchung
                                 // Es handelt sich um eine empfangene E-Mail
                                 else
                                 {
+                                    log("\t[E-Mail] von " + senderEmailAddress + " am " + mailItem.ReceivedTime + " (Server) " + mailItem.CreationTime + " (Outlook)");
 
                                     // Setze bei der ersten Empfangenen E-Mail den Kommunikationspartner und erstelle falls diese noch nicht vorhandne ist eine neue Beziehung
                                     if (string.IsNullOrEmpty(partner))
@@ -417,8 +433,6 @@ namespace SynchronizitätsUntersuchung
                                             beziehungen.Add(partner, new Beziehung(partner));
                                         }
                                         // Füge der Beziehung sofort die Konversation hinzu
-                                        konversation.Thema = thema;
-                                        Debug.WriteLine("Thema: " + thema);
                                         beziehungen[partner].Konversation_Hinzufuegen(konversation);
 
                                     }
@@ -964,6 +978,17 @@ namespace SynchronizitätsUntersuchung
 
             file.WriteLine(sb.ToString());
             file.Close();
+        }
+
+        private void log(String message) 
+        {
+            if(logfile == null)
+            {
+                logfile = File.AppendText(Pfad + "logfile.txt");
+            }
+            
+            logfile.WriteLine("{0}: {1}", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture), message);
+            Debug.WriteLine("{0}: {1}", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture), message);
         }
     }
 }

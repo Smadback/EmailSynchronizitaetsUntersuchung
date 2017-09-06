@@ -18,31 +18,66 @@ namespace SynchronizitätsUntersuchung
 
     class Helper
     {
+        /**
+         * zeit in Sekunden
+         */
         public static Antwortzeit GetAntwortzeit(double zeit)
         {
-            if(zeit == 0)
+            // Wenn Breite Werte ausgewählt wurde
+            if(SynchronizitaetUntersuchung.Breite_Werte)
             {
-                return Antwortzeit.Undefiniert;
+                if (zeit == 0)
+                {
+                    return Antwortzeit.Undefiniert;
+                }
+                else if (zeit > 295200)
+                {
+                    return Antwortzeit.SehrLangsam; // mehr als 3 Tage
+                }
+                else if (zeit > 86400)
+                {
+                    return Antwortzeit.Langsam; // zwischen 1 Tag und 3 Tage
+                }
+                else if (zeit > 3600)
+                {
+                    return Antwortzeit.Normal; // zwischen 1 Stunden und 1 Tag
+                }
+                else if (zeit > 300)
+                {
+                    return Antwortzeit.Schnell; // zwischen 5 Minuten und 1 Stunde
+                }
+                else
+                {
+                    return Antwortzeit.SehrSchnell; // weniger als 5 Minuten
+                }
             }
-            else if (zeit > 86400) // mehr als 24 Stunden
+            // Wenn nicht Breite Werte ausgewählt wurde, und stattdessen statistische Werte verwendet werden sollenr
+            else
             {
-                return Antwortzeit.SehrLangsam;
-            }
-            else if (zeit > 14400) // zwischen 4 Stunden und 24 Stunden
-            {
-                return Antwortzeit.Langsam;
-            }
-            else if (zeit > 3600) // zwischen 30 Minuten und 4 Stunden
-            {
-                return Antwortzeit.Normal;
-            }
-            else if (zeit > 240) // zwischen 3 Minuten und 30 Minuten
-            {
-                return Antwortzeit.Schnell;
-            }
-            else // weniger als 3 Minuten
-            {
-                return Antwortzeit.SehrSchnell;
+                if (zeit == 0)
+                {
+                    return Antwortzeit.Undefiniert;
+                }
+                else if (zeit > 86400) 
+                {
+                    return Antwortzeit.SehrLangsam; // mehr als 24 Stunden
+                }
+                else if (zeit > 14400) 
+                {
+                    return Antwortzeit.Langsam; // zwischen 4 Stunden und 24 Stunden
+                }
+                else if (zeit > 3600)
+                {
+                    return Antwortzeit.Normal; // zwischen 30 Minuten und 4 Stunden
+                }
+                else if (zeit > 180)
+                {
+                    return Antwortzeit.Schnell; // zwischen 3 Minuten und 30 Minuten
+                }
+                else
+                {
+                    return Antwortzeit.SehrSchnell; // weniger als 3 Minuten
+                }
             }
         }
     }

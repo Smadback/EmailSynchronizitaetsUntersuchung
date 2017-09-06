@@ -224,6 +224,7 @@
     <Compile Include="ThisAddIn.cs">
       <SubType>Code</SubType>
     </Compile>
+    <None Include="SynchronizitaetsUntersuchung_TemporaryKey.pfx" />
     <None Include="SynchronizitätsUntersuchung_TemporaryKey.pfx" />
     <None Include="ThisAddIn.Designer.xml">
       <DependentUpon>ThisAddIn.cs</DependentUpon>
@@ -241,11 +242,20 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
+    <ManifestKeyFile>SynchronizitaetsUntersuchung_TemporaryKey.pfx</ManifestKeyFile>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ManifestCertificateThumbprint>D5591EF37E7E4745546B7DBCAAFDCE8A5DA9EDBC</ManifestCertificateThumbprint>
+  </PropertyGroup>
+  <!-- <PropertyGroup>
+    <SignManifests>true</SignManifests>
+  </PropertyGroup>
+  <PropertyGroup>
     <ManifestKeyFile>SynchronizitätsUntersuchung_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
     <ManifestCertificateThumbprint>865D67B9DF46B269732C141B50B4FC557494AF31</ManifestCertificateThumbprint>
-  </PropertyGroup>
+  </PropertyGroup> -->
   <!-- Include the build rules for a C# project. -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Include additional build rules for an Office application add-in. -->
