@@ -74,10 +74,25 @@ namespace SynchronizitätsUntersuchung
                 MessageBox.Show("Die Synchronizitätsuntersuchung wird gestartet. Diese kann abhängig von der Größe des Mailordners mehrere Minuten dauern.", "Start", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 // Dann Untersuchung starten
                 Starte_Untersuchung();
+
+
                 Auswerten();
                 Erstelle_html_datei();
                 Daten_In_Datei_Schreiben();
-                MessageBox.Show("Die Synchronizitätsuntersuchung wurde erfolgreich abgeschlossen.", "Erfolg", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                Breite_Werte = true;
+                foreach(KeyValuePair<string, Beziehung> bez in beziehungen)
+                {
+                    foreach(Antwort ant in bez.Value.Antworten)
+                    {
+                        ant.Synchronizitaet_Setzen();
+                    }
+                }
+                Auswerten();
+                Erstelle_html_datei();
+
+
+            MessageBox.Show("Die Synchronizitätsuntersuchung wurde erfolgreich abgeschlossen.", "Erfolg", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             /*foreach(KeyValuePair<string, Beziehung> bez in beziehungen)
             {
@@ -118,7 +133,7 @@ namespace SynchronizitätsUntersuchung
             dialog.Controls.Add(email);
             dialog.Controls.Add(textLabel);
             dialog.Controls.Add(override_btn);
-            dialog.Controls.Add(eigenewerte_btn);
+            //dialog.Controls.Add(eigenewerte_btn);
             dialog.Controls.Add(confirmation);
             dialog.Controls.Add(cancel);
             dialog.AcceptButton = confirmation;
@@ -136,7 +151,7 @@ namespace SynchronizitätsUntersuchung
                     log("CheckBox \"BreiteWerte\": " + eigenewerte_btn.Checked);
                     User = email.Text;
                     Untersuchung_Erweitern = !override_btn.Checked;
-                    Breite_Werte = eigenewerte_btn.Checked;
+                    //Breite_Werte = eigenewerte_btn.Checked;
                     break;
                 default:
                     Cancel = true;
@@ -901,7 +916,14 @@ namespace SynchronizitätsUntersuchung
 
 
             // Return the result.
-            File.WriteAllText(Pfad + "SynchronizitaetsUntersuchung.html", stringWriter.ToString());
+            if(Breite_Werte)
+            {
+                File.WriteAllText(Pfad + "SynchronizitaetsUntersuchung_BreitereWerte.html", stringWriter.ToString());
+            }
+            else
+            {
+                File.WriteAllText(Pfad + "SynchronizitaetsUntersuchung.html", stringWriter.ToString());
+            }
         }
 
         private void Daten_In_Datei_Schreiben()

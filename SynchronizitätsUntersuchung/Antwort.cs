@@ -12,7 +12,7 @@ namespace SynchronizitätsUntersuchung
         public double Antwortzeit;
         public DayOfWeek Wochentag;
         public string Tageszeit;
-        public Antwortzeit Synchronizität { get; }
+        public Antwortzeit Synchronizität { get; private set; }
 
         private DateTime zeitstempel_empfangene_mail;
         private DateTime zeitstempel_gesendete_antwort;
@@ -34,6 +34,11 @@ namespace SynchronizitätsUntersuchung
             Antwortzeit = antwortzeit;
             Wochentag = wochentag;
             Tageszeit = tageszeit;
+            Synchronizität = Helper.GetAntwortzeit(Antwortzeit);
+        }
+
+        public void Synchronizitaet_Setzen()
+        {
             Synchronizität = Helper.GetAntwortzeit(Antwortzeit);
         }
 

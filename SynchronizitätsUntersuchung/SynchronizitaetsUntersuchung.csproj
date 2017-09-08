@@ -242,10 +242,11 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>SynchronizitaetsUntersuchung_TemporaryKey.pfx</ManifestKeyFile>
+    <ManifestKeyFile>
+    </ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>D5591EF37E7E4745546B7DBCAAFDCE8A5DA9EDBC</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>06788087F06CF2E678F9DD780567AB99C6A8BC79</ManifestCertificateThumbprint>
   </PropertyGroup>
   <!-- <PropertyGroup>
     <SignManifests>true</SignManifests>
