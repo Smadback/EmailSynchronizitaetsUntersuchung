@@ -66,7 +66,7 @@ namespace SynchronizitätsUntersuchung
                 {
                     return Antwortzeit.Langsam; // zwischen 4 Stunden und 24 Stunden
                 }
-                else if (zeit > 3600)
+                else if (zeit > 1800)
                 {
                     return Antwortzeit.Normal; // zwischen 30 Minuten und 4 Stunden
                 }

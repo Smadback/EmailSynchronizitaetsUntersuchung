@@ -30,7 +30,7 @@
     <DefineConstants>VSTO40</DefineConstants>
     <IsWebBootstrapper>False</IsWebBootstrapper>
     <BootstrapperEnabled>true</BootstrapperEnabled>
-    <PublishUrl>D:\Programming\Visual Studio Projects\SynchronizitätsUntersuchung\Install\</PublishUrl>
+    <PublishUrl>C:\Users\student_schmaddebeck\Documents\Install\</PublishUrl>
     <InstallUrl />
     <TargetCulture>de</TargetCulture>
     <ApplicationVersion>1.0.0.0</ApplicationVersion>
@@ -38,17 +38,17 @@
     <UpdateEnabled>false</UpdateEnabled>
     <UpdateInterval>0</UpdateInterval>
     <UpdateIntervalUnits>days</UpdateIntervalUnits>
-    <ProductName>SynchronizitätsUntersuchung</ProductName>
+    <ProductName>SynchronizitaetsUntersuchung</ProductName>
     <PublisherName>Maik Schmaddebeck</PublisherName>
     <SupportUrl />
-    <FriendlyName>SynchronizitätsUntersuchung</FriendlyName>
+    <FriendlyName>SynchronizitaetsUntersuchung</FriendlyName>
     <OfficeApplicationDescription />
     <LoadBehavior>3</LoadBehavior>
   </PropertyGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.5.2">
       <Visible>False</Visible>
-      <ProductName>Microsoft .NET Framework 4.5.2 %28x86 and x64%29</ProductName>
+      <ProductName>Microsoft .NET Framework 4.5.2 %28x86 und x64%29</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
     <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
@@ -58,7 +58,7 @@
     </BootstrapperPackage>
     <BootstrapperPackage Include="Microsoft.VSTORuntime.4.0">
       <Visible>False</Visible>
-      <ProductName>Microsoft Visual Studio 2010 Tools for Office Runtime %28x86 and x64%29</ProductName>
+      <ProductName>Microsoft Visual Studio 2010-Tools für Office-Laufzeit %28x86 und x64%29</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
   </ItemGroup>
@@ -225,7 +225,6 @@
       <SubType>Code</SubType>
     </Compile>
     <None Include="SynchronizitaetsUntersuchung_TemporaryKey.pfx" />
-    <None Include="SynchronizitätsUntersuchung_TemporaryKey.pfx" />
     <None Include="ThisAddIn.Designer.xml">
       <DependentUpon>ThisAddIn.cs</DependentUpon>
     </None>
@@ -242,21 +241,11 @@
     <SignManifests>true</SignManifests>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestKeyFile>
-    </ManifestKeyFile>
+    <ManifestKeyFile>SynchronizitaetsUntersuchung_TemporaryKey.pfx</ManifestKeyFile>
   </PropertyGroup>
   <PropertyGroup>
-    <ManifestCertificateThumbprint>06788087F06CF2E678F9DD780567AB99C6A8BC79</ManifestCertificateThumbprint>
+    <ManifestCertificateThumbprint>43CC5B00B88D393D14DC9F58A2F2A23F1A22D72F</ManifestCertificateThumbprint>
   </PropertyGroup>
-  <!-- <PropertyGroup>
-    <SignManifests>true</SignManifests>
-  </PropertyGroup>
-  <PropertyGroup>
-    <ManifestKeyFile>SynchronizitätsUntersuchung_TemporaryKey.pfx</ManifestKeyFile>
-  </PropertyGroup>
-  <PropertyGroup>
-    <ManifestCertificateThumbprint>865D67B9DF46B269732C141B50B4FC557494AF31</ManifestCertificateThumbprint>
-  </PropertyGroup> -->
   <!-- Include the build rules for a C# project. -->
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- Include additional build rules for an Office application add-in. -->

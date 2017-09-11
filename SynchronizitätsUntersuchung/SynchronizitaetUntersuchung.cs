@@ -45,28 +45,29 @@ namespace SynchronizitätsUntersuchung
 
         private void btnUntersuchungStarten_Click(object sender, RibbonControlEventArgs e)
         {
-            log("Starte Untersuchung");
-            speicher = new Dictionary<string, int>();
-            Zeige_Dialog();
 
-            // Abbrechen
-            if (Cancel)
+            try
             {
-                return;
-            }
+                log("Starte Untersuchung");
+                speicher = new Dictionary<string, int>();
+                Zeige_Dialog();
 
-            // Es wurde keine E-Mail angegeben
-            if (User == "")
-            {
-                log("Keine E-Mail Adresse angegeben");
-                MessageBox.Show("Um die Untersuchung durchzufügen, muss angegeben werden wie deine E-Mail Adresse lautet.");
-                return;
-            }
+                // Abbrechen
+                if (Cancel)
+                {
+                    return;
+                }
 
-            Properties.Settings.Default.UserEmail = User;
+                // Es wurde keine E-Mail angegeben
+                if (User == "")
+                {
+                    log("Keine E-Mail Adresse angegeben");
+                    MessageBox.Show("Um die Untersuchung durchzufügen, muss angegeben werden wie deine E-Mail Adresse lautet.");
+                    return;
+                }
 
-            /*try
-            {*/
+                Properties.Settings.Default.UserEmail = User;
+
                 // Zunächst Ordner für Auswertung erstellen wenn dieser noch nicht existiert
                 Directory.CreateDirectory(Pfad);
                 // Dann prüfen ob erweitert oder von vorne untersucht werden soll
@@ -103,11 +104,20 @@ namespace SynchronizitätsUntersuchung
                     Debug.WriteLine("\tKonversation: " + konv.Value.Thema + " mit " + konv.Value.Laenge + " Emails");
                 }
             }*/
-            /*}
-            catch (System.Exception)
+            }
+            catch (System.Exception ex)
             {
+                string filePath = Pfad + "Error.txt";
+
+                using (StreamWriter writer = new StreamWriter(filePath, true))
+                {
+                    writer.WriteLine("Message :" + ex.Message + "<br/>" + Environment.NewLine + "StackTrace :" + ex.StackTrace +
+                       "" + Environment.NewLine + "Date :" + DateTime.Now.ToString());
+                    writer.WriteLine(Environment.NewLine + "-----------------------------------------------------------------------------" + Environment.NewLine);
+                }
+
                 MessageBox.Show("Es ist ein Fehler aufgetreten, bitte führe die Untersuchung erneut durch.", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }*/
+            }
         }
 
         private void Zeige_Dialog()
@@ -120,8 +130,6 @@ namespace SynchronizitätsUntersuchung
                 Text = "Deine E-Mail Adresse, die du in dem zu untersuchenden Postfach verwendest.",
                 StartPosition = FormStartPosition.CenterScreen
             };
-
-            Properties.Settings.Default.UserEmail = "maik.schmaddebeck@tu-clausthal.de";
 
             Label textLabel = new Label() { Left = 40, Top = 15, Width = 610, Text = "E-Mail Adresse" };
             TextBox email = new TextBox() { Left = 40, Top = 35, Width = 610, Text = Properties.Settings.Default.UserEmail };
