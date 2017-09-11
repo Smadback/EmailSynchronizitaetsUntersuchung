@@ -2,7 +2,7 @@
 Outlook Add-In zum Untersuchen ausgewählter E-Mail Ordner nach Synchronizität in der Kommunikation. Entwickelt im Zuge einer Bachelorarbeit an der TU Clausthal.
 
 # Installation
-Wenn der Fehler auftritt, dass das Zertifikat nicht vertrauenswürdig müssen folgende Schritte ausgeführt werden:
+Wenn der Fehler auftritt, dass das Zertifikat nicht vertrauenswürdig ist, müssen folgende Schritte ausgeführt werden:
 1. Rechtsklick auf "setup.exe" und auf "Properties" klicken
 2. Zum Tab "Digital Signatures" wechseln
 3. Das Zertifikat aus der Liste wählen und auf "Details" klicken
