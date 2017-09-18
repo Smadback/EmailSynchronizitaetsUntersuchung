@@ -29,7 +29,7 @@ namespace SynchronizitätsUntersuchung
         List<string> konversationen;
         Dictionary<string, Beziehung> beziehungen;
         ExchangeUser currentUser;
-        StreamWriter logfile = null;
+        StringBuilder logwriter = null;
 
         /*
          * Initialisiere das Add-In
@@ -48,6 +48,10 @@ namespace SynchronizitätsUntersuchung
 
             try
             {
+
+                // Zunächst Ordner für Auswertung erstellen wenn dieser noch nicht existiert
+                Directory.CreateDirectory(Pfad);
+
                 log("Starte Untersuchung");
                 speicher = new Dictionary<string, int>();
                 Zeige_Dialog();
@@ -68,8 +72,6 @@ namespace SynchronizitätsUntersuchung
 
                 Properties.Settings.Default.UserEmail = User;
 
-                // Zunächst Ordner für Auswertung erstellen wenn dieser noch nicht existiert
-                Directory.CreateDirectory(Pfad);
                 // Dann prüfen ob erweitert oder von vorne untersucht werden soll
                 if (Untersuchung_Erweitern) Daten_Aus_Datei_Lesen();
                 MessageBox.Show("Die Synchronizitätsuntersuchung wird gestartet. Diese kann abhängig von der Größe des Mailordners mehrere Minuten dauern.", "Start", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -95,28 +97,43 @@ namespace SynchronizitätsUntersuchung
 
             MessageBox.Show("Die Synchronizitätsuntersuchung wurde erfolgreich abgeschlossen.", "Erfolg", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
-            /*foreach(KeyValuePair<string, Beziehung> bez in beziehungen)
-            {
-                Debug.WriteLine("Beziehung: " + bez.Key);
+                log("Untersuchung erfolgreich abgeschlossen.");
+                log("----------------------------------------------------------------------------------");
+                
+                
+                StringBuilder beziehungBuilder = new StringBuilder();
 
-                foreach(KeyValuePair<string, Konversation> konv in bez.Value.Konversationen)
+                foreach (KeyValuePair<string, Beziehung> bez in beziehungen)
                 {
-                    Debug.WriteLine("\tKonversation: " + konv.Value.Thema + " mit " + konv.Value.Laenge + " Emails");
+                    Debug.WriteLine("Beziehung: " + bez.Key);
+                    beziehungBuilder.AppendLine("Beziehung: " + bez.Key);
+
+                    foreach (KeyValuePair<string, Konversation> konv in bez.Value.Konversationen)
+                    {
+                        Debug.WriteLine("\tKonversation: " + konv.Value.Thema + " mit " + konv.Value.Laenge + " Emails");
+                        beziehungBuilder.AppendLine("\tKonversation: " + konv.Value.Thema + " mit " + konv.Value.Laenge + " Emails");
+                    }
                 }
-            }*/
+                
+                File.WriteAllText(Pfad + "beziehungen.txt", beziehungBuilder.ToString());
+                File.WriteAllText(Pfad + "logfile_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture) + ".txt", logwriter.ToString());
+
             }
             catch (System.Exception ex)
             {
-                string filePath = Pfad + "Error.txt";
+                File.WriteAllText(Pfad + "logfile_" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss", CultureInfo.InvariantCulture) + ".txt", logwriter.ToString());
 
-                using (StreamWriter writer = new StreamWriter(filePath, true))
+                using (StreamWriter writer = File.AppendText(Pfad + "Error.txt"))
                 {
-                    writer.WriteLine("Message :" + ex.Message + "<br/>" + Environment.NewLine + "StackTrace :" + ex.StackTrace +
-                       "" + Environment.NewLine + "Date :" + DateTime.Now.ToString());
+                    writer.WriteLine(
+                        "Date: " + DateTime.Now.ToString() + Environment.NewLine + 
+                        "Message: " + ex.Message + Environment.NewLine + 
+                        "StackTrace:" + ex.StackTrace);
                     writer.WriteLine(Environment.NewLine + "-----------------------------------------------------------------------------" + Environment.NewLine);
                 }
 
                 MessageBox.Show("Es ist ein Fehler aufgetreten, bitte führe die Untersuchung erneut durch.", "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
+
             }
         }
 
@@ -134,14 +151,12 @@ namespace SynchronizitätsUntersuchung
             Label textLabel = new Label() { Left = 40, Top = 15, Width = 610, Text = "E-Mail Adresse" };
             TextBox email = new TextBox() { Left = 40, Top = 35, Width = 610, Text = Properties.Settings.Default.UserEmail };
             CheckBox override_btn = new CheckBox() { Text = "Komplett neue Untersuchung durchführen und alle bestehende Daten überschreiben", Left = 40, Top = 90, Width = 610, Checked = false };
-            CheckBox eigenewerte_btn = new CheckBox() { Text = "Für die Untersuchung breitere Werte verwenden", Left = 40, Top = 65, Width = 610, Checked = false };
             Button confirmation = new Button() { Text = "Ok", Left = 340, Width = 100, Top = 120, DialogResult = DialogResult.OK };
             Button cancel = new Button() { Text = "Abbrechen", Left = 450, Width = 100, Top = 120, DialogResult = DialogResult.Cancel };
 
             dialog.Controls.Add(email);
             dialog.Controls.Add(textLabel);
             dialog.Controls.Add(override_btn);
-            //dialog.Controls.Add(eigenewerte_btn);
             dialog.Controls.Add(confirmation);
             dialog.Controls.Add(cancel);
             dialog.AcceptButton = confirmation;
@@ -151,15 +166,11 @@ namespace SynchronizitätsUntersuchung
 
             switch (result)
             {
-                // put in how you want the various results to be handled
-                // if ok, then something like var x = dialog.MyX;
                 case DialogResult.OK:
                     log("E-Mail Adresse \"" + email.Text + "\" angegeben.");
                     log("CheckBox \"Überschreiben\": " + override_btn.Checked);
-                    log("CheckBox \"BreiteWerte\": " + eigenewerte_btn.Checked);
                     User = email.Text;
                     Untersuchung_Erweitern = !override_btn.Checked;
-                    //Breite_Werte = eigenewerte_btn.Checked;
                     break;
                 default:
                     Cancel = true;
@@ -297,7 +308,17 @@ namespace SynchronizitätsUntersuchung
 
         private void UntersucheOrdner(Folder folder)
         {
-            log("Untersuche [Ordner] " + folder.Name);
+            log("[Ordner] " + folder.FolderPath);
+
+            /*
+             * Handelt es sich nicht um einen Ordner der E-Mails enthält, beende das Programm
+             */
+            if (folder.DefaultItemType != OlItemType.olMailItem)
+            {
+                log("Ordner enthält keine E-Mails. Return.");
+                return;
+            }
+
             Konversation konversation;
             string thema;
             string partner;
@@ -316,14 +337,6 @@ namespace SynchronizitätsUntersuchung
             {
                 lesezeichen = speicher[folder.EntryID];
                 log("Lesezeichen bei " + lesezeichen + " gesetzt.");
-            }
-
-            /*
-             * Handelt es sich nicht um einen Ordner der E-Mails enthält, beende das Programm
-             */
-            if (folder.DefaultItemType != OlItemType.olMailItem)
-            {
-                return;
             }
 
             /*
@@ -399,7 +412,7 @@ namespace SynchronizitätsUntersuchung
                                 {
                                     thema = mailItem.ConversationTopic;
                                     konversation.Thema = thema;
-                                    log("[Konversation] \"" + thema + "\"");
+                                    log("\t[Konversation] \"" + thema + "\"");
                                 }
 
                                 if (!string.IsNullOrEmpty(mailItem.SenderEmailAddress))
@@ -410,7 +423,7 @@ namespace SynchronizitätsUntersuchung
                                 // Es handelt sich um eine gesendete E-Mail
                                 if (senderEmailAddress == User || (currentUser != null && senderEmailAddress.Equals(currentUser.Address, StringComparison.OrdinalIgnoreCase)))
                                 {
-                                    log("\t[E-Mail] von " + senderEmailAddress + " am " + mailItem.SentOn);
+                                    log("\t\t[E-Mail] von " + senderEmailAddress + " am " + mailItem.SentOn);
                                     /*
                                      * Aktualisiere den Synchronizitätswert für diese Konversation, in dem die Zeit zwischen
                                      * Empfangen der letzten E-Mail und Senden der aktuellen E-Mail berechnet und mit dem letzten 
@@ -445,7 +458,7 @@ namespace SynchronizitätsUntersuchung
                                 // Es handelt sich um eine empfangene E-Mail
                                 else
                                 {
-                                    log("\t[E-Mail] von " + senderEmailAddress + " am " + mailItem.ReceivedTime + " (Server) " + mailItem.CreationTime + " (Outlook)");
+                                    log("\t\t[E-Mail] von " + senderEmailAddress + " am " + mailItem.ReceivedTime + " (Server) " + mailItem.CreationTime + " (Outlook)");
 
                                     // Setze bei der ersten Empfangenen E-Mail den Kommunikationspartner und erstelle falls diese noch nicht vorhandne ist eine neue Beziehung
                                     if (string.IsNullOrEmpty(partner))
@@ -504,12 +517,9 @@ namespace SynchronizitätsUntersuchung
             {
                 foreach (Folder childFolder in childFolders)
                 {
-                    // Write the folder path.
-                    Debug.WriteLine("##############################################################");
-                    Debug.WriteLine(childFolder.FolderPath);
-                    Debug.WriteLine("##############################################################");
                     // Call EnumerateFolders using childFolder.
                     UntersucheOrdner(childFolder);
+                    log("---------------------------------------------------");
                 }
             }
 
@@ -1012,13 +1022,14 @@ namespace SynchronizitätsUntersuchung
 
         private void log(String message) 
         {
-            if(logfile == null)
+            if(logwriter == null)
             {
-                logfile = File.AppendText(Pfad + "logfile.txt");
+                logwriter = new StringBuilder();
             }
-            
-            logfile.WriteLine("{0}: {1}", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture), message);
-            Debug.WriteLine("{0}: {1}", DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture), message);
+
+            //logfile.WriteLine("{0}: {1}", DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss.fff", CultureInfo.InvariantCulture), message);
+            logwriter.AppendLine(DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss.fff", CultureInfo.InvariantCulture) + ": " + message);
+            Debug.WriteLine("{0}: {1}", DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss.fff", CultureInfo.InvariantCulture), message);
         }
     }
 }
