@@ -344,168 +344,181 @@ namespace SynchronizitätsUntersuchung
              */
             for (int item = lesezeichen; item <= folder.Items.Count; item++)
             {
-                speicher[folder.EntryID] = item;
-                MailItem mail = folder.Items[item] as MailItem;
-
-                /*
-                 * Überspringe das aktuelle Item, wenn es sich dabei nicht um eine E-Mail handelt
-                 */
-                if (mail == null)
+                try
                 {
-                    continue;
-                }
+                    speicher[folder.EntryID] = item;
+                    MailItem mail = folder.Items[item] as MailItem;
 
-                /*
-                 * Hole die zur E-Mail gehörende Konversation und prüfe ob die Konversation bereits abgehandelt wurde.
-                 * Wenn nicht, füge sie in das Dictionary aller gefundenen Konversationen ein, mit denen später weitergearbeitet wird.
-                 */
-                Conversation k = mail.GetConversation();
-                if (k != null && !konversationen.Contains(k.ConversationID))
-                {
                     /*
-                     * Es handelt sich um eine neue Konversation die zu bearbeiten ist, initialisiere deshalb alle nötigen Variablen
+                     * Überspringe das aktuelle Item, wenn es sich dabei nicht um eine E-Mail handelt
                      */
-                    konversation = new Konversation(k.ConversationID);
-                    thema = null;
-                    partner = null;
-
-                    letzteMailWurdeEmpfangen = false;
-                    creationTimeDerLetztenEmpfangenenMail = DateTime.Now; // Mit jetzigem TimeStamp versehen, da irgendwas initialisiert werden muss
-                    receivedTimeDerLetztenEmpfangenenMail = DateTime.Now; // Mit jetzigem TimeStamp versehen, da irgendwas initialisiert werden muss
-
-                    letzteMailWurdeGesendet = false;
-                    sentOnDerLetztenGesendetenMail = DateTime.Now; // Mit jetzigem TimeStamp versehen, da irgendwas initialisiert werden muss
-                    receivedTimeDerLetztenGesendetenMail = DateTime.Now; // Mit jetzigem TimeStamp versehen, da irgendwas initialisiert werden muss
-
-                    Table table = k.GetTable();
-                    
-                    // Wenn die Konversation mindestens aus 2 E-Mails besteht
-                    if (table.GetRowCount() > 1)
+                    if (mail == null)
                     {
-                        dynamic[,] temp = table.GetArray(table.GetRowCount());
-                        string entryID;
-
-                        List<MailItem> mailItems = new List<MailItem>();
-
-                        for (int i = 0; i < temp.GetLength(0); i++)
-                        {
-                            entryID = ((object)temp[i, 0]).ToString();
-
-                            MailItem mailitem = NameSpace.GetItemFromID(entryID, folder.StoreID) as MailItem;
-                            if (mailitem != null)
-                            {
-                                mailItems.Add(mailitem);
-                            }
-                        }
-                        mailItems.Sort((x, y) => DateTime.Compare(x.ReceivedTime, y.ReceivedTime));
-
-                        // Iteriere alle E-Mails der Konversation
-                        foreach (MailItem mailItem in mailItems)
-                        {
-                            String senderEmailAddress = "";
-
-                            // Die Mail nur betrachten wenn sie abgesendet wurde (also kein Draft ist)
-                            if (mailItem.Sent)
-                            {
-
-                                if (string.IsNullOrEmpty(thema))
-                                {
-                                    thema = mailItem.ConversationTopic;
-                                    konversation.Thema = thema;
-                                    log("\t[Konversation] \"" + thema + "\"");
-                                }
-
-                                if (!string.IsNullOrEmpty(mailItem.SenderEmailAddress))
-                                {
-                                    senderEmailAddress = mailItem.SenderEmailAddress;
-                                }
-
-                                // Es handelt sich um eine gesendete E-Mail
-                                if (senderEmailAddress == User || (currentUser != null && senderEmailAddress.Equals(currentUser.Address, StringComparison.OrdinalIgnoreCase)))
-                                {
-                                    log("\t\t[E-Mail] von " + senderEmailAddress + " am " + mailItem.SentOn);
-                                    /*
-                                     * Aktualisiere den Synchronizitätswert für diese Konversation, in dem die Zeit zwischen
-                                     * Empfangen der letzten E-Mail und Senden der aktuellen E-Mail berechnet und mit dem letzten 
-                                     * Synchronizitätswert addiert wird.
-                                     */
-                                    if (letzteMailWurdeEmpfangen)
-                                    {
-                                        // Sollte die E-Mail beantwortet worden sein, bevor diese auf dem Computer geladen wurde (z.B. per Mobil beantwortet), dann nimm die
-                                        // Zeit des Eingangs auf dem Server zur Berechnung
-                                        DateTime antwort_zeitstempel = (mailItem.SentOn < creationTimeDerLetztenEmpfangenenMail) ? receivedTimeDerLetztenEmpfangenenMail : creationTimeDerLetztenEmpfangenenMail;
-                                        TimeSpan antwort_antwortzeit = mailItem.SentOn - antwort_zeitstempel;
-                                        TimeSpan konversation_antwortzeit = mailItem.SentOn - receivedTimeDerLetztenEmpfangenenMail;
-
-                                        // Es wird eine neue Antwort erstellt und diese der passenden Beziehung zugeordnet
-                                        beziehungen[partner].Antworten.Add(new Antwort(antwort_antwortzeit.TotalSeconds, antwort_zeitstempel, mailItem.SentOn));
-                                        // Neue Antwort der Konversation hinzufügen
-                                        beziehungen[partner].Konversationen[konversation.Id].Antwort_Hinzufuegen(konversation_antwortzeit.TotalSeconds);
-                                    }
-
-                                    // Wenn mehr als eine Nachricht hintereinander gesendet werden, ohne dass selbst eine E-Mail empfangen wird, dann
-                                    // überschreib den Zeitstempel nicht mit der neuen gesendeten E-Mail, sondern behalte den der älteren bei
-                                    if (!letzteMailWurdeGesendet)
-                                    {
-                                        receivedTimeDerLetztenGesendetenMail = mailItem.ReceivedTime;
-                                        sentOnDerLetztenGesendetenMail = mailItem.SentOn;
-                                    }
-
-                                    // Auf False setzen, da es sich hier um eine gesendete Mail handelt
-                                    letzteMailWurdeEmpfangen = false;
-                                    letzteMailWurdeGesendet = true;
-                                }
-                                // Es handelt sich um eine empfangene E-Mail
-                                else
-                                {
-                                    log("\t\t[E-Mail] von " + senderEmailAddress + " am " + mailItem.ReceivedTime + " (Server) " + mailItem.CreationTime + " (Outlook)");
-
-                                    // Setze bei der ersten Empfangenen E-Mail den Kommunikationspartner und erstelle falls diese noch nicht vorhandne ist eine neue Beziehung
-                                    if (string.IsNullOrEmpty(partner))
-                                    {
-                                        partner = mailItem.SenderName;
-                                        if (!beziehungen.ContainsKey(partner))
-                                        {
-                                            beziehungen.Add(partner, new Beziehung(partner));
-                                        }
-                                        // Füge der Beziehung sofort die Konversation hinzu
-                                        beziehungen[partner].Konversation_Hinzufuegen(konversation);
-
-                                    }
-
-                                    // Zähle die E-Mail als Empfangen
-                                    beziehungen[partner].AnzahlErhalteneEmails++;
-
-                                    // Aktualisiere Gesprächs Synchronizität
-                                    if (letzteMailWurdeGesendet)
-                                    {
-                                        // Neue Antwort der Konversation hinzufügen
-                                        TimeSpan antwortzeit = mailItem.ReceivedTime - sentOnDerLetztenGesendetenMail;
-                                        beziehungen[partner].Konversationen[konversation.Id].Antwort_Hinzufuegen(antwortzeit.TotalSeconds);
-                                    }
-
-                                    // Wenn mehr als eine Nachricht hintereinander empfangen werden, ohne dass selbst eine E-Mail abgeschickt wird, dann
-                                    // überschreib den Zeitstempel nicht mit der neuen empfangenen E-Mail, sondern behalte den der älteren bei
-                                    if (!letzteMailWurdeEmpfangen)
-                                    {
-                                        creationTimeDerLetztenEmpfangenenMail = mailItem.CreationTime;
-                                        receivedTimeDerLetztenEmpfangenenMail = mailItem.ReceivedTime;
-                                    }
-
-                                    // Es handelt sich um eine empfangene Mail, deshalb Schalter setzen
-                                    letzteMailWurdeEmpfangen = true;
-                                    letzteMailWurdeGesendet = false;
-                                }
-
-
-                            }
-
-                        }
-
+                        continue;
                     }
 
-                    konversationen.Add(konversation.Id);
+                    /*
+                     * Hole die zur E-Mail gehörende Konversation und prüfe ob die Konversation bereits abgehandelt wurde.
+                     * Wenn nicht, füge sie in das Dictionary aller gefundenen Konversationen ein, mit denen später weitergearbeitet wird.
+                     */
+                    Conversation k = mail.GetConversation();
+                    if (k != null && !konversationen.Contains(k.ConversationID))
+                    {
+                        /*
+                         * Es handelt sich um eine neue Konversation die zu bearbeiten ist, initialisiere deshalb alle nötigen Variablen
+                         */
+                        konversation = new Konversation(k.ConversationID);
+                        thema = null;
+                        partner = null;
 
+                        letzteMailWurdeEmpfangen = false;
+                        creationTimeDerLetztenEmpfangenenMail = DateTime.Now; // Mit jetzigem TimeStamp versehen, da irgendwas initialisiert werden muss
+                        receivedTimeDerLetztenEmpfangenenMail = DateTime.Now; // Mit jetzigem TimeStamp versehen, da irgendwas initialisiert werden muss
+
+                        letzteMailWurdeGesendet = false;
+                        sentOnDerLetztenGesendetenMail = DateTime.Now; // Mit jetzigem TimeStamp versehen, da irgendwas initialisiert werden muss
+                        receivedTimeDerLetztenGesendetenMail = DateTime.Now; // Mit jetzigem TimeStamp versehen, da irgendwas initialisiert werden muss
+
+                        Table table = k.GetTable();
+
+                        // Wenn die Konversation mindestens aus 2 E-Mails besteht
+                        if (table.GetRowCount() > 1)
+                        {
+                            dynamic[,] temp = temp = table.GetArray(table.GetRowCount());
+                            string entryID;
+                            List<MailItem> mailItems = new List<MailItem>();
+
+                            for (int i = 0; i < temp.GetLength(0); i++)
+                            {
+                                try
+                                {
+                                    entryID = ((object)temp[i, 0]).ToString();
+
+                                    MailItem mailitem = NameSpace.GetItemFromID(entryID) as MailItem;
+
+                                    if (mailitem != null)
+                                    {
+                                        mailItems.Add(mailitem);
+                                    }
+                                }
+                                catch (System.Exception e)
+                                {
+                                    continue;
+                                }
+                            }
+                            mailItems.Sort((x, y) => DateTime.Compare(x.ReceivedTime, y.ReceivedTime));
+
+                            // Iteriere alle E-Mails der Konversation
+                            foreach (MailItem mailItem in mailItems)
+                            {
+                                String senderEmailAddress = "";
+
+                                // Die Mail nur betrachten wenn sie abgesendet wurde (also kein Draft ist)
+                                if (mailItem.Sent)
+                                {
+
+                                    if (string.IsNullOrEmpty(thema))
+                                    {
+                                        thema = mailItem.ConversationTopic;
+                                        konversation.Thema = thema;
+                                        log("\t[Konversation] \"" + thema + "\"");
+                                    }
+
+                                    if (!string.IsNullOrEmpty(mailItem.SenderEmailAddress))
+                                    {
+                                        senderEmailAddress = mailItem.SenderEmailAddress;
+                                    }
+
+                                    // Es handelt sich um eine gesendete E-Mail
+                                    if (senderEmailAddress == User || (currentUser != null && senderEmailAddress.Equals(currentUser.Address, StringComparison.OrdinalIgnoreCase)))
+                                    {
+                                        log("\t\t[E-Mail] von " + senderEmailAddress + " am " + mailItem.SentOn);
+                                        /*
+                                         * Aktualisiere den Synchronizitätswert für diese Konversation, in dem die Zeit zwischen
+                                         * Empfangen der letzten E-Mail und Senden der aktuellen E-Mail berechnet und mit dem letzten 
+                                         * Synchronizitätswert addiert wird.
+                                         */
+                                        if (letzteMailWurdeEmpfangen)
+                                        {
+                                            // Sollte die E-Mail beantwortet worden sein, bevor diese auf dem Computer geladen wurde (z.B. per Mobil beantwortet), dann nimm die
+                                            // Zeit des Eingangs auf dem Server zur Berechnung
+                                            DateTime antwort_zeitstempel = (mailItem.SentOn < creationTimeDerLetztenEmpfangenenMail) ? receivedTimeDerLetztenEmpfangenenMail : creationTimeDerLetztenEmpfangenenMail;
+                                            TimeSpan antwort_antwortzeit = mailItem.SentOn - antwort_zeitstempel;
+                                            TimeSpan konversation_antwortzeit = mailItem.SentOn - receivedTimeDerLetztenEmpfangenenMail;
+
+                                            // Es wird eine neue Antwort erstellt und diese der passenden Beziehung zugeordnet
+                                            beziehungen[partner].Antworten.Add(new Antwort(antwort_antwortzeit.TotalSeconds, antwort_zeitstempel, mailItem.SentOn));
+                                            // Neue Antwort der Konversation hinzufügen
+                                            beziehungen[partner].Konversationen[konversation.Id].Antwort_Hinzufuegen(konversation_antwortzeit.TotalSeconds);
+                                        }
+
+                                        // Wenn mehr als eine Nachricht hintereinander gesendet werden, ohne dass selbst eine E-Mail empfangen wird, dann
+                                        // überschreib den Zeitstempel nicht mit der neuen gesendeten E-Mail, sondern behalte den der älteren bei
+                                        if (!letzteMailWurdeGesendet)
+                                        {
+                                            receivedTimeDerLetztenGesendetenMail = mailItem.ReceivedTime;
+                                            sentOnDerLetztenGesendetenMail = mailItem.SentOn;
+                                        }
+
+                                        // Auf False setzen, da es sich hier um eine gesendete Mail handelt
+                                        letzteMailWurdeEmpfangen = false;
+                                        letzteMailWurdeGesendet = true;
+                                    }
+                                    // Es handelt sich um eine empfangene E-Mail
+                                    else
+                                    {
+                                        log("\t\t[E-Mail] von " + senderEmailAddress + " am " + mailItem.ReceivedTime + " (Server) " + mailItem.CreationTime + " (Outlook)");
+
+                                        // Setze bei der ersten Empfangenen E-Mail den Kommunikationspartner und erstelle falls diese noch nicht vorhandne ist eine neue Beziehung
+                                        if (string.IsNullOrEmpty(partner))
+                                        {
+                                            partner = mailItem.SenderName;
+                                            if (!beziehungen.ContainsKey(partner))
+                                            {
+                                                beziehungen.Add(partner, new Beziehung(partner));
+                                            }
+                                            // Füge der Beziehung sofort die Konversation hinzu
+                                            beziehungen[partner].Konversation_Hinzufuegen(konversation);
+
+                                        }
+
+                                        // Zähle die E-Mail als Empfangen
+                                        beziehungen[partner].AnzahlErhalteneEmails++;
+
+                                        // Aktualisiere Gesprächs Synchronizität
+                                        if (letzteMailWurdeGesendet)
+                                        {
+                                            // Neue Antwort der Konversation hinzufügen
+                                            TimeSpan antwortzeit = mailItem.ReceivedTime - sentOnDerLetztenGesendetenMail;
+                                            beziehungen[partner].Konversationen[konversation.Id].Antwort_Hinzufuegen(antwortzeit.TotalSeconds);
+                                        }
+
+                                        // Wenn mehr als eine Nachricht hintereinander empfangen werden, ohne dass selbst eine E-Mail abgeschickt wird, dann
+                                        // überschreib den Zeitstempel nicht mit der neuen empfangenen E-Mail, sondern behalte den der älteren bei
+                                        if (!letzteMailWurdeEmpfangen)
+                                        {
+                                            creationTimeDerLetztenEmpfangenenMail = mailItem.CreationTime;
+                                            receivedTimeDerLetztenEmpfangenenMail = mailItem.ReceivedTime;
+                                        }
+
+                                        // Es handelt sich um eine empfangene Mail, deshalb Schalter setzen
+                                        letzteMailWurdeEmpfangen = true;
+                                        letzteMailWurdeGesendet = false;
+                                    }
+
+
+                                }
+
+                            }
+
+                        }
+
+                        konversationen.Add(konversation.Id);
+                    }
+                }
+                catch (System.Exception e)
+                {
+                    continue;
                 }
 
             }
